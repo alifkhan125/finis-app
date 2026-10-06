@@ -39,6 +39,7 @@ import {
   useDeleteAdminExpenseMutation,
   useMarkAdminExpensePaidMutation,
   useRejectAdminExpenseMutation,
+  useRequestRevisionAdminExpenseMutation,
   useSubmitAdminExpenseMutation,
   useUpdateAdminExpenseMutation,
 } from "@/hooks/admin/expenses";
@@ -382,6 +383,7 @@ export default function AdminExpensesScreen() {
   const submitMutation = useSubmitAdminExpenseMutation();
   const approveMutation = useApproveAdminExpenseMutation();
   const rejectMutation = useRejectAdminExpenseMutation();
+  const requestRevisionMutation = useRequestRevisionAdminExpenseMutation();
   const paidMutation = useMarkAdminExpensePaidMutation();
   const expenses = list.data?.data ?? [];
   const refreshing =
@@ -392,7 +394,8 @@ export default function AdminExpensesScreen() {
   const busy =
     savingAction !== null ||
     createMutation.isPending ||
-    updateMutation.isPending;
+    updateMutation.isPending ||
+    requestRevisionMutation.isPending;
   const stats = summary.data ?? {
     totalExpenses: 0,
     draft: 0,
@@ -573,9 +576,14 @@ export default function AdminExpensesScreen() {
     setSavingAction(action);
     try {
       const payload = buildPayload(action);
-      if (editing)
+      if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, payload });
-      else await createMutation.mutateAsync(payload);
+        if (action === "SUBMITTED") {
+          await submitMutation.mutateAsync(editing.id);
+        }
+      } else {
+        await createMutation.mutateAsync(payload);
+      }
       setModalOpen(false);
     } catch (error) {
       toast.error(
@@ -790,11 +798,28 @@ export default function AdminExpensesScreen() {
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        onPress={() => rejectMutation.mutate({ id: e.id })}
+                        onPress={() => {
+                          Alert.alert(
+                            "Reject Expense",
+                            "Are you sure you want to permanently reject this expense? There will be no option to revise it later.",
+                            [
+                              { text: "Cancel", style: "cancel" },
+                              { text: "Reject", style: "destructive", onPress: () => rejectMutation.mutate({ id: e.id }) }
+                            ]
+                          );
+                        }}
                         className="rounded-full bg-[#FEE2E2] px-3 py-2"
                       >
                         <Text className="text-[12px] font-semibold text-[#DC2626]">
                           Reject
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => requestRevisionMutation.mutate({ id: e.id })}
+                        className="rounded-full border border-[#FED7AA] bg-[#FFF7ED] px-3 py-2 ml-2"
+                      >
+                        <Text className="text-[12px] font-semibold text-[#EA580C]">
+                          Revision
                         </Text>
                       </TouchableOpacity>
                     </>

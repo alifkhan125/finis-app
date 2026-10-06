@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner-native";
-import { approveAdminExpense, createAdminExpense, deleteAdminExpense, ExpenseFilters, ExpensePayload, getAdminExpenses, getAdminExpenseOptions, getAdminExpenseProjectTasks, getAdminExpenseProjects, getAdminExpenseSummary, markAdminExpensePaid, rejectAdminExpense, submitAdminExpense, updateAdminExpense } from "@/api/admin/expenses.api";
+import { approveAdminExpense, createAdminExpense, deleteAdminExpense, ExpenseFilters, ExpensePayload, getAdminExpenses, getAdminExpenseOptions, getAdminExpenseProjectTasks, getAdminExpenseProjects, getAdminExpenseSummary, markAdminExpensePaid, rejectAdminExpense, requestRevisionAdminExpense, submitAdminExpense, updateAdminExpense } from "@/api/admin/expenses.api";
 import { useAuthStore } from "@/store/auth.store";
 
 const key = ["admin", "expenses"];
@@ -16,4 +16,5 @@ export function useDeleteAdminExpenseMutation() { return useExpenseMutation((id:
 export function useSubmitAdminExpenseMutation() { return useExpenseMutation((id: string) => submitAdminExpense(id), "Expense submitted"); }
 export function useApproveAdminExpenseMutation() { return useExpenseMutation((id: string) => approveAdminExpense(id), "Expense approved"); }
 export function useRejectAdminExpenseMutation() { return useExpenseMutation(({ id, comment }: { id: string; comment?: string }) => rejectAdminExpense(id, comment), "Expense rejected"); }
+export function useRequestRevisionAdminExpenseMutation() { return useExpenseMutation(({ id, comment }: { id: string; comment?: string }) => requestRevisionAdminExpense(id, comment), "Revision requested"); }
 export function useMarkAdminExpensePaidMutation() { return useExpenseMutation((id: string) => markAdminExpensePaid(id), "Expense marked paid"); }
