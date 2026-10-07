@@ -27,7 +27,12 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { toast, Toaster } from "sonner-native";
-import type { ReimbursementExpense } from "@/api/admin/expenses.api";
+import {
+  uploadExpenseReceipt,
+  type ExpensePayload,
+  type ReimbursementExpense,
+} from "@/api/admin/expenses.api";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useAdminExpenseOptionsQuery,
   useAdminExpenseProjectTasksQuery,
@@ -94,6 +99,12 @@ const emptyForm = {
 };
 function money(amount?: number, currency = "BDT") {
   return `${currency} ${Number(amount ?? 0).toFixed(2)}`;
+}
+function getExpenseStatus(expense: { status: string; rejectionNote?: string | null }) {
+  if (expense.status === "REVISION" || (expense.status === "DRAFT" && Boolean(expense.rejectionNote))) {
+    return "REVISION";
+  }
+  return expense.status;
 }
 function statusColor(status: string) {
   return status === "PAID"
@@ -385,6 +396,50 @@ export default function AdminExpensesScreen() {
   const rejectMutation = useRejectAdminExpenseMutation();
   const requestRevisionMutation = useRequestRevisionAdminExpenseMutation();
   const paidMutation = useMarkAdminExpensePaidMutation();
+  const queryClient = useQueryClient();
+  const [uploadingReceiptIds, setUploadingReceiptIds] = useState<Record<string, ReceiptAsset>>({});
+  const [failedReceiptIds, setFailedReceiptIds] = useState<Record<string, ReceiptAsset>>({});
+
+  const uploadReceiptInBackground = async (
+    expenseId: string,
+    expenseTitle: string,
+    asset: ReceiptAsset
+  ) => {
+    setUploadingReceiptIds((prev) => ({ ...prev, [expenseId]: asset }));
+    setFailedReceiptIds((prev) => {
+      const next = { ...prev };
+      delete next[expenseId];
+      return next;
+    });
+
+    try {
+      await uploadExpenseReceipt(expenseId, asset);
+      setUploadingReceiptIds((prev) => {
+        const next = { ...prev };
+        delete next[expenseId];
+        return next;
+      });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "expenses"] });
+      toast.success(`Receipt uploaded for "${expenseTitle}"`);
+    } catch {
+      setUploadingReceiptIds((prev) => {
+        const next = { ...prev };
+        delete next[expenseId];
+        return next;
+      });
+      setFailedReceiptIds((prev) => ({ ...prev, [expenseId]: asset }));
+      toast.error(
+        `Receipt upload failed for "${expenseTitle}". Tap card to retry.`
+      );
+    }
+  };
+
+  const retryReceiptUpload = (expenseId: string, expenseTitle: string) => {
+    const asset = failedReceiptIds[expenseId];
+    if (asset) {
+      uploadReceiptInBackground(expenseId, expenseTitle, asset);
+    }
+  };
   const expenses = list.data?.data ?? [];
   const refreshing =
     list.isRefetching ||
@@ -421,6 +476,7 @@ export default function AdminExpensesScreen() {
       ["Approved", stats.approved],
       ["Rejected", stats.rejected],
       ["Paid", stats.paid],
+      ["Revision", stats.revision ?? 0],
       ["This Month", money(stats.totalAmountThisMonth)],
     ],
     [stats],
@@ -444,12 +500,12 @@ export default function AdminExpensesScreen() {
     const result =
       source === "camera"
         ? await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            quality: 0.8,
+            mediaTypes: ['images'],
+            quality: 0.5,
           })
         : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            quality: 0.8,
+            mediaTypes: ['images'],
+            quality: 0.5,
           });
     if (!result.canceled && result.assets[0]?.uri) {
       const asset = result.assets[0];
@@ -531,32 +587,6 @@ export default function AdminExpensesScreen() {
     setSelectorSearch(item.name);
     setActiveSelector(null);
   };
-  const buildPayload = (action: "DRAFT" | "SUBMITTED") => {
-    const fd = new FormData();
-    const subtotalNum = parseFloat(form.subtotal) || 0;
-    const taxNum = parseFloat(form.tax) || 0;
-    const totalAmountNum = parseFloat((subtotalNum + taxNum).toFixed(2));
-
-    appendText(fd, "title", form.title.trim());
-    appendText(fd, "expenseDate", form.expenseDate);
-    appendText(fd, "subtotal", subtotalNum.toFixed(2));
-    appendText(fd, "tax", taxNum.toFixed(2));
-    appendText(fd, "totalAmount", totalAmountNum.toFixed(2));
-    appendText(fd, "currency", form.currency.trim());
-    appendText(fd, "category", form.category.trim());
-    appendText(fd, "vendor", form.vendor.trim());
-    appendText(fd, "paymentMethod", form.paymentMethod.trim());
-    appendText(fd, "projectId", form.projectId.trim());
-    appendText(fd, "taskId", form.taskId.trim());
-    appendText(fd, "subTaskId", form.subTaskId.trim());
-    appendText(fd, "notes", form.notes.trim());
-    appendText(fd, "action", action);
-    appendImageToFormData(fd, "receipt", receipt, {
-      fileName: receipt?.name ?? "receipt.jpg",
-      mimeType: receipt?.type ?? "image/jpeg",
-    });
-    return fd;
-  };
   const save = async (action: "DRAFT" | "SUBMITTED") => {
     if (busy) return;
     if (
@@ -570,24 +600,64 @@ export default function AdminExpensesScreen() {
       !form.paymentMethod.trim() ||
       (!receipt && !editing?.receiptUrl)
     ) {
-      toast.error("Please fill all required fields including Subtotal, Tax, and Receipt");
+      toast.error(
+        "Please fill all required fields including Subtotal, Tax, and Receipt"
+      );
       return;
     }
+
     setSavingAction(action);
     try {
-      const payload = buildPayload(action);
+      const subtotalNum = parseFloat(form.subtotal) || 0;
+      const taxNum = parseFloat(form.tax) || 0;
+      const totalAmountNum = parseFloat((subtotalNum + taxNum).toFixed(2));
+
+      const textPayload: ExpensePayload = {
+        title: form.title.trim(),
+        expenseDate: form.expenseDate,
+        subtotal: subtotalNum,
+        tax: taxNum,
+        totalAmount: totalAmountNum,
+        currency: form.currency.trim(),
+        category: form.category.trim(),
+        vendor: form.vendor.trim() || undefined,
+        paymentMethod: form.paymentMethod.trim(),
+        projectId: form.projectId.trim(),
+        taskId: form.taskId.trim() || undefined,
+        subTaskId: form.subTaskId.trim() || undefined,
+        notes: form.notes.trim() || undefined,
+        action,
+      };
+
+      const receiptToUpload = receipt;
+      const expenseTitle = form.title.trim();
+
       if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, payload });
-        if (action === "SUBMITTED") {
+        await updateMutation.mutateAsync({ id: editing.id, payload: textPayload });
+        if (action === "SUBMITTED" && (editing.status === "DRAFT" || editing.status === "REVISION")) {
           await submitMutation.mutateAsync(editing.id);
         }
+        setModalOpen(false);
+        toast.success("Expense updated successfully");
+        if (receiptToUpload) {
+          uploadReceiptInBackground(editing.id, expenseTitle, receiptToUpload);
+        }
       } else {
-        await createMutation.mutateAsync(payload);
+        const created = (await createMutation.mutateAsync(textPayload)) as any;
+        const createdId = created?.id || created?.data?.id;
+        setModalOpen(false);
+        toast.success(
+          action === "SUBMITTED"
+            ? "Expense submitted! Receipt uploading in background..."
+            : "Expense saved as draft! Receipt uploading in background..."
+        );
+        if (receiptToUpload && createdId) {
+          uploadReceiptInBackground(createdId, expenseTitle, receiptToUpload);
+        }
       }
-      setModalOpen(false);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Expense submit failed",
+        error instanceof Error ? error.message : "Expense submit failed"
       );
     } finally {
       setSavingAction(null);
@@ -736,17 +806,52 @@ export default function AdminExpensesScreen() {
                       Sub: {money(e.subtotal, e.currency)} | Tax: {money(e.tax, e.currency)}
                     </Text>
                     <Text
-                      style={{ color: statusColor(e.status) }}
+                      style={{ color: statusColor(getExpenseStatus(e)) }}
                       className="mt-1 text-[12px] font-semibold"
                     >
-                      {e.status}
+                      {getExpenseStatus(e)}
                     </Text>
                   </View>
                 </View>
-                {e.receiptUrl ? (
-                  <Text className="mt-2 text-[12px] text-[#1D5478]">
-                    Receipt uploaded
-                  </Text>
+                {e.rejectionNote ? (
+                  <View className="mt-2.5 rounded-lg border border-[#FED7AA] bg-[#FFF7ED] p-2.5">
+                    <Text className="text-[11px] font-bold text-[#EA580C]">
+                      Revision Reason:
+                    </Text>
+                    <Text className="mt-0.5 text-[12px] text-[#9A3412]">
+                      {e.rejectionNote}
+                    </Text>
+                  </View>
+                ) : null}
+                {uploadingReceiptIds[e.id] ? (
+                  <View className="mt-2 flex-row items-center gap-1.5 rounded-lg bg-[#EAF3FA] px-2.5 py-1.5">
+                    <ActivityIndicator size="small" color="#1D5478" />
+                    <Text className="text-[12px] font-medium text-[#1D5478]">
+                      Uploading receipt in background...
+                    </Text>
+                  </View>
+                ) : failedReceiptIds[e.id] ? (
+                  <TouchableOpacity
+                    onPress={() => retryReceiptUpload(e.id, e.title)}
+                    className="mt-2 flex-row items-center justify-between rounded-lg bg-[#FEE2E2] px-2.5 py-1.5"
+                  >
+                    <View className="flex-row items-center gap-1.5">
+                      <Ionicons name="alert-circle" size={14} color="#DC2626" />
+                      <Text className="text-[12px] font-medium text-[#DC2626]">
+                        Receipt upload failed
+                      </Text>
+                    </View>
+                    <Text className="text-[12px] font-bold text-[#DC2626] underline">
+                      Tap to retry
+                    </Text>
+                  </TouchableOpacity>
+                ) : e.receiptUrl ? (
+                  <View className="mt-2 flex-row items-center gap-1">
+                    <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
+                    <Text className="text-[12px] font-medium text-[#16A34A]">
+                      Receipt uploaded
+                    </Text>
+                  </View>
                 ) : null}
                 <View className="mt-3 flex-row flex-wrap gap-2">
                   <TouchableOpacity
@@ -757,7 +862,7 @@ export default function AdminExpensesScreen() {
                       View
                     </Text>
                   </TouchableOpacity>
-                  {canCreateExpenses && ["DRAFT", "SUBMITTED", "REJECTED"].includes(e.status) ? (
+                  {canCreateExpenses && ["DRAFT", "SUBMITTED", "REJECTED", "REVISION"].includes(e.status) ? (
                     <TouchableOpacity
                       onPress={() => openEdit(e)}
                       className="rounded-full bg-[#EAF3FA] px-3 py-2"
@@ -767,24 +872,26 @@ export default function AdminExpensesScreen() {
                       </Text>
                     </TouchableOpacity>
                   ) : null}
-                  {canCreateExpenses && e.status === "DRAFT" ? (
+                  {canCreateExpenses && (e.status === "DRAFT" || e.status === "REVISION") ? (
                     <>
                       <TouchableOpacity
                         onPress={() => submitMutation.mutate(e.id)}
                         className="rounded-full bg-[#1D5478] px-3 py-2"
                       >
                         <Text className="text-[12px] font-semibold text-white">
-                          Submit
+                          {e.status === "REVISION" ? "Resubmit" : "Submit"}
                         </Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => confirmDelete(e.id)}
-                        className="rounded-full bg-[#FEE2E2] px-3 py-2"
-                      >
-                        <Text className="text-[12px] font-semibold text-[#DC2626]">
-                          Delete
-                        </Text>
-                      </TouchableOpacity>
+                      {e.status === "DRAFT" ? (
+                        <TouchableOpacity
+                          onPress={() => confirmDelete(e.id)}
+                          className="rounded-full bg-[#FEE2E2] px-3 py-2"
+                        >
+                          <Text className="text-[12px] font-semibold text-[#DC2626]">
+                            Delete
+                          </Text>
+                        </TouchableOpacity>
+                      ) : null}
                     </>
                   ) : null}
                   {canReviewExpenses && e.status === "SUBMITTED" ? (
@@ -1026,17 +1133,23 @@ export default function AdminExpensesScreen() {
                   {savingAction === "DRAFT" ? "Saving..." : "Save Draft"}
                 </Text>
               </TouchableOpacity>
-              {!editing ? (
-                <TouchableOpacity
-                  disabled={busy}
-                  onPress={() => save("SUBMITTED")}
-                  className="h-[48px] flex-1 items-center justify-center rounded-[12px] bg-[#1D5478]"
-                >
-                  <Text className="font-semibold text-white">
-                    {savingAction === "SUBMITTED" ? "Submitting..." : "Submit"}
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
+              <TouchableOpacity
+                disabled={busy}
+                onPress={() => save("SUBMITTED")}
+                className="h-[48px] flex-1 items-center justify-center rounded-[12px] bg-[#1D5478]"
+              >
+                <Text className="font-semibold text-white">
+                  {savingAction === "SUBMITTED"
+                    ? editing?.status === "REVISION"
+                      ? "Resubmitting..."
+                      : "Submitting..."
+                    : editing?.status === "REVISION"
+                      ? "Resubmit"
+                      : editing
+                        ? "Save & Submit"
+                        : "Submit"}
+                </Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
           </KeyboardAvoidingView>
@@ -1123,6 +1236,29 @@ export default function AdminExpensesScreen() {
                 value={selectedExpense.paymentMethod}
               />
               <DetailRow label="Notes" value={selectedExpense.notes} />
+              {selectedExpense && uploadingReceiptIds[selectedExpense.id] ? (
+                <View className="flex-row items-center gap-2 rounded-[16px] bg-[#EAF3FA] p-4">
+                  <ActivityIndicator size="small" color="#1D5478" />
+                  <Text className="text-[13px] font-medium text-[#1D5478]">
+                    Receipt is uploading in background...
+                  </Text>
+                </View>
+              ) : selectedExpense && failedReceiptIds[selectedExpense.id] ? (
+                <TouchableOpacity
+                  onPress={() => retryReceiptUpload(selectedExpense.id, selectedExpense.title)}
+                  className="flex-row items-center justify-between rounded-[16px] bg-[#FEE2E2] p-4"
+                >
+                  <View className="flex-row items-center gap-2">
+                    <Ionicons name="alert-circle" size={18} color="#DC2626" />
+                    <Text className="text-[13px] font-medium text-[#DC2626]">
+                      Receipt upload failed
+                    </Text>
+                  </View>
+                  <Text className="text-[13px] font-bold text-[#DC2626] underline">
+                    Retry upload
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
               {selectedReceiptUrl ? (
                 <View className="overflow-hidden rounded-[16px] border border-[#E5EAF0]">
                   <View className="flex-row items-center justify-between px-4 py-3">

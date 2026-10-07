@@ -1,6 +1,7 @@
+import { appendImageToFormData } from "@/lib/uploads/image-upload";
 import { api } from "@/lib/api/client";
 
-export type ReimbursementExpenseStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "PAID";
+export type ReimbursementExpenseStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "PAID" | "REVISION";
 export type ReimbursementExpense = {
   id: string; title: string; expenseDate: string; subtotal: number; tax: number; totalAmount: number; amount?: number; currency: string; category: string;
   vendor?: string | null; paymentMethod?: string | null; projectId?: string | null; taskId?: string | null; subTaskId?: string | null; notes?: string | null; receiptUrl?: string | null;
@@ -9,7 +10,7 @@ export type ReimbursementExpense = {
 };
 export type ExpensePayload = { title: string; expenseDate: string; subtotal: number; tax: number; totalAmount: number; currency?: string; category: string; vendor?: string; paymentMethod: string; projectId?: string; taskId?: string; subTaskId?: string; notes?: string; action?: "DRAFT" | "SUBMITTED" };
 export type ExpenseFilters = { page?: number; limit?: number; search?: string; status?: string; category?: string; currency?: string; projectId?: string; sortBy?: "createdAt" | "expenseDate" | "amount" | "totalAmount" | "subtotal"; sortOrder?: "asc" | "desc" };
-export type ExpenseSummary = { totalExpenses: number; draft: number; submitted: number; approved: number; rejected: number; paid: number; totalAmountThisMonth: number };
+export type ExpenseSummary = { totalExpenses: number; draft: number; submitted: number; approved: number; rejected: number; paid: number; revision?: number; totalAmountThisMonth: number };
 export type ExpenseOptions = { currency: string[]; category: string[]; paymentMethod: string[] };
 export type ExpenseProjectOption = { id: string; name: string };
 export type ExpenseTaskOption = { id: string; taskId: string; subTaskId?: string | null; type: "task" | "subtask"; title: string; status?: string };
@@ -27,7 +28,14 @@ export async function getAdminExpenseOptions() { const { data } = await api.get<
 export async function getAdminExpenseProjects() { const { data } = await api.get<ProjectsResponse>("/admin/reimbursement-expenses/projects"); if (!data.success) throw new Error(data.message); return data.data ?? []; }
 export async function getAdminExpenseProjectTasks(projectId: string) { const { data } = await api.get<TaskOptionsResponse>(`/admin/reimbursement-expenses/projects/${projectId}/tasks`); if (!data.success) throw new Error(data.message); return data.data ?? []; }
 export async function getAdminExpense(id: string) { const { data } = await api.get<DataResponse<ReimbursementExpense>>(`/admin/reimbursement-expenses/${id}`); if (!data.success) throw new Error(data.message); return data.data; }
-function multipartConfig(payload: unknown) { return payload instanceof FormData ? { headers: { "Content-Type": undefined } } : undefined; }
+function multipartConfig(payload: unknown) {
+  return payload instanceof FormData
+    ? {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 90000,
+      }
+    : undefined;
+}
 export async function createAdminExpense(payload: ExpensePayload | FormData) { const { data } = await api.post<DataResponse<ReimbursementExpense>>("/admin/reimbursement-expenses", payload, multipartConfig(payload)); if (!data.success) throw new Error(data.message); return data.data; }
 export async function updateAdminExpense(id: string, payload: Partial<ExpensePayload> | FormData) { const { data } = await api.patch<DataResponse<ReimbursementExpense>>(`/admin/reimbursement-expenses/${id}`, payload, multipartConfig(payload)); if (!data.success) throw new Error(data.message); return data.data; }
 export async function deleteAdminExpense(id: string) { const { data } = await api.delete<DataResponse<{ id: string }>>(`/admin/reimbursement-expenses/${id}`); if (!data.success) throw new Error(data.message); return data.data; }
@@ -36,3 +44,15 @@ export async function approveAdminExpense(id: string) { const { data } = await a
 export async function rejectAdminExpense(id: string, comment?: string) { const { data } = await api.post<DataResponse<ReimbursementExpense>>(`/admin/reimbursement-expenses/${id}/reject`, { comment }); if (!data.success) throw new Error(data.message); return data.data; }
 export async function requestRevisionAdminExpense(id: string, comment?: string) { const { data } = await api.post<DataResponse<ReimbursementExpense>>(`/admin/reimbursement-expenses/${id}/request-revision`, { comment }); if (!data.success) throw new Error(data.message); return data.data; }
 export async function markAdminExpensePaid(id: string) { const { data } = await api.post<DataResponse<ReimbursementExpense>>(`/admin/reimbursement-expenses/${id}/mark-paid`); if (!data.success) throw new Error(data.message); return data.data; }
+
+export async function uploadExpenseReceipt(
+  id: string,
+  receipt: { uri: string; name?: string | null; type?: string | null }
+) {
+  const formData = new FormData();
+  appendImageToFormData(formData, "receipt", receipt, {
+    fileName: receipt.name ?? "receipt.jpg",
+    mimeType: receipt.type ?? "image/jpeg",
+  });
+  return updateAdminExpense(id, formData);
+}
