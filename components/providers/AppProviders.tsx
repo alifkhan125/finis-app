@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Toaster } from "sonner-native";
+import OfflineNotice from "@/components/common/OfflineNotice";
 import { useAuthMeQuery } from "@/hooks/auth/auth";
 import { useFcmTokenTest } from "@/hooks/notifications/useFcmTokenTest";
 import { useNotificationsSocket } from "@/lib/notifications-socket";
@@ -42,6 +43,7 @@ export default function AppProviders({ children }: AppProvidersProps) {
           <AuthBootstrap />
           {children}
           <Toaster />
+          <OfflineNotice />
         </QueryClientProvider>
       </StripeProvider>
     </GestureHandlerRootView>
