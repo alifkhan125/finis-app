@@ -115,7 +115,9 @@ function statusColor(status: string) {
         ? "#DC2626"
         : status === "SUBMITTED"
           ? "#B45309"
-          : "#64748B";
+          : status === "REVISION"
+            ? "#EA580C"
+            : "#64748B";
 }
 function appendText(
   formData: FormData,
@@ -358,6 +360,34 @@ export default function AdminExpensesScreen() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ReimbursementExpense | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [initialEditingForm, setInitialEditingForm] = useState<typeof emptyForm | null>(null);
+
+  const isExpenseModified = () => {
+    if (!initialEditingForm) return true;
+    if (receipt !== null) return true;
+
+    if (form.title.trim() !== initialEditingForm.title.trim()) return true;
+    if (form.expenseDate.slice(0, 10) !== initialEditingForm.expenseDate.slice(0, 10)) return true;
+
+    const currentSub = parseFloat(form.subtotal) || 0;
+    const initialSub = parseFloat(initialEditingForm.subtotal) || 0;
+    if (Math.abs(currentSub - initialSub) > 0.001) return true;
+
+    const currentTax = parseFloat(form.tax) || 0;
+    const initialTax = parseFloat(initialEditingForm.tax) || 0;
+    if (Math.abs(currentTax - initialTax) > 0.001) return true;
+
+    if (form.currency.trim() !== initialEditingForm.currency.trim()) return true;
+    if (form.category.trim() !== initialEditingForm.category.trim()) return true;
+    if ((form.vendor || "").trim() !== (initialEditingForm.vendor || "").trim()) return true;
+    if ((form.paymentMethod || "").trim() !== (initialEditingForm.paymentMethod || "").trim()) return true;
+    if ((form.projectId || "").trim() !== (initialEditingForm.projectId || "").trim()) return true;
+    if ((form.taskId || "").trim() !== (initialEditingForm.taskId || "").trim()) return true;
+    if ((form.subTaskId || "").trim() !== (initialEditingForm.subTaskId || "").trim()) return true;
+    if ((form.notes || "").trim() !== (initialEditingForm.notes || "").trim()) return true;
+
+    return false;
+  };
   const [receipt, setReceipt] = useState<ReceiptAsset | null>(null);
   const [activeSelector, setActiveSelector] = useState<SelectorType | null>(
     null,
@@ -533,6 +563,7 @@ export default function AdminExpensesScreen() {
     );
   const openCreate = () => {
     setEditing(null);
+    setInitialEditingForm(null);
     setForm(emptyForm);
     setReceipt(null);
     setModalOpen(true);
@@ -540,9 +571,9 @@ export default function AdminExpensesScreen() {
   const openEdit = (expense: ReimbursementExpense) => {
     setEditing(expense);
     setReceipt(null);
-    setForm({
+    const initial = {
       title: expense.title,
-      expenseDate: expense.expenseDate.slice(0, 10),
+      expenseDate: expense.expenseDate ? expense.expenseDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
       subtotal: expense.subtotal !== undefined ? String(expense.subtotal) : String(expense.amount ?? ""),
       tax: expense.tax !== undefined ? String(expense.tax) : "0",
       currency: expense.currency,
@@ -553,7 +584,9 @@ export default function AdminExpensesScreen() {
       taskId: expense.taskId ?? "",
       subTaskId: expense.subTaskId ?? "",
       notes: expense.notes ?? "",
-    });
+    };
+    setForm(initial);
+    setInitialEditingForm(initial);
     setModalOpen(true);
   };
   const openSelector = (type: SelectorType) => {
@@ -606,6 +639,17 @@ export default function AdminExpensesScreen() {
       return;
     }
 
+    if (editing?.status === "REVISION" && action === "SUBMITTED") {
+      if (!isExpenseModified()) {
+        Alert.alert(
+          "Edit Required",
+          "At least 1 field must be edited before resubmitting. Please update the necessary details before submitting."
+        );
+        toast.error("Please edit at least 1 field before resubmitting");
+        return;
+      }
+    }
+
     setSavingAction(action);
     try {
       const subtotalNum = parseFloat(form.subtotal) || 0;
@@ -638,7 +682,11 @@ export default function AdminExpensesScreen() {
           await submitMutation.mutateAsync(editing.id);
         }
         setModalOpen(false);
-        toast.success("Expense updated successfully");
+        toast.success(
+          action === "SUBMITTED" && editing.status === "REVISION"
+            ? "Expense resubmitted successfully"
+            : "Expense updated successfully"
+        );
         if (receiptToUpload) {
           uploadReceiptInBackground(editing.id, expenseTitle, receiptToUpload);
         }
@@ -813,12 +861,21 @@ export default function AdminExpensesScreen() {
                     </Text>
                   </View>
                 </View>
-                {e.rejectionNote ? (
+                {getExpenseStatus(e) === "REVISION" && e.rejectionNote ? (
                   <View className="mt-2.5 rounded-lg border border-[#FED7AA] bg-[#FFF7ED] p-2.5">
                     <Text className="text-[11px] font-bold text-[#EA580C]">
                       Revision Reason:
                     </Text>
                     <Text className="mt-0.5 text-[12px] text-[#9A3412]">
+                      {e.rejectionNote}
+                    </Text>
+                  </View>
+                ) : e.status === "REJECTED" && e.rejectionNote ? (
+                  <View className="mt-2.5 rounded-lg border border-[#FECACA] bg-[#FEF2F2] p-2.5">
+                    <Text className="text-[11px] font-bold text-[#DC2626]">
+                      Rejection Reason:
+                    </Text>
+                    <Text className="mt-0.5 text-[12px] text-[#DC2626]">
                       {e.rejectionNote}
                     </Text>
                   </View>
@@ -875,7 +932,21 @@ export default function AdminExpensesScreen() {
                   {canCreateExpenses && (e.status === "DRAFT" || e.status === "REVISION") ? (
                     <>
                       <TouchableOpacity
-                        onPress={() => submitMutation.mutate(e.id)}
+                        onPress={() => {
+                          if (e.status === "REVISION") {
+                            Alert.alert(
+                              "Edit Required",
+                              "At least 1 field must be edited before resubmitting. Please update the expense details.",
+                              [
+                                { text: "Cancel", style: "cancel" },
+                                { text: "Edit Now", onPress: () => openEdit(e) },
+                              ]
+                            );
+                            toast.error("Please edit at least 1 field before resubmitting");
+                            return;
+                          }
+                          submitMutation.mutate(e.id);
+                        }}
                         className="rounded-full bg-[#1D5478] px-3 py-2"
                       >
                         <Text className="text-[12px] font-semibold text-white">
@@ -962,13 +1033,35 @@ export default function AdminExpensesScreen() {
               <Ionicons name="close" size={24} color="#111827" />
             </TouchableOpacity>
             <Text className="ml-4 text-[18px] font-semibold text-[#111827]">
-              {editing ? "Edit Expense" : "Add Expense"}
+              {editing
+                ? editing.status === "REVISION"
+                  ? "Resubmit Expense"
+                  : "Edit Expense"
+                : "Add Expense"}
             </Text>
           </View>
           <ScrollView
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ padding: 20, gap: 12 }}
           >
+            {editing?.status === "REVISION" && (
+              <View className="rounded-[12px] border border-[#FED7AA] bg-[#FFF7ED] p-3.5">
+                <View className="flex-row items-center gap-1.5">
+                  <Ionicons name="information-circle" size={16} color="#EA580C" />
+                  <Text className="text-[12px] font-bold text-[#EA580C]">
+                    Revision Requested
+                  </Text>
+                </View>
+                {editing.rejectionNote ? (
+                  <Text className="mt-1 text-[12px] text-[#9A3412]">
+                    Reason: {editing.rejectionNote}
+                  </Text>
+                ) : null}
+                <Text className="mt-1 text-[11px] font-semibold text-[#C2410C]">
+                  * You must edit at least 1 field before resubmitting.
+                </Text>
+              </View>
+            )}
             <View>
               <Text className="mb-2 text-[12px] font-semibold text-[#64748B]">
                 Expense Title<Text className="text-red-500"> *</Text>
@@ -1197,10 +1290,10 @@ export default function AdminExpensesScreen() {
                   Subtotal: {money(selectedExpense.subtotal, selectedExpense.currency)}  |  Tax: {money(selectedExpense.tax, selectedExpense.currency)}
                 </Text>
                 <Text
-                  style={{ color: statusColor(selectedExpense.status) }}
+                  style={{ color: statusColor(getExpenseStatus(selectedExpense)) }}
                   className="mt-2 text-[13px] font-semibold"
                 >
-                  {selectedExpense.status}
+                  {getExpenseStatus(selectedExpense)}
                 </Text>
               </View>
               <DetailRow
@@ -1236,6 +1329,25 @@ export default function AdminExpensesScreen() {
                 value={selectedExpense.paymentMethod}
               />
               <DetailRow label="Notes" value={selectedExpense.notes} />
+              {getExpenseStatus(selectedExpense) === "REVISION" && selectedExpense.rejectionNote ? (
+                <View className="rounded-[12px] border border-[#FED7AA] bg-[#FFF7ED] p-3.5">
+                  <Text className="text-[12px] font-bold text-[#EA580C]">
+                    Revision Reason:
+                  </Text>
+                  <Text className="mt-1 text-[13px] text-[#9A3412]">
+                    {selectedExpense.rejectionNote}
+                  </Text>
+                </View>
+              ) : selectedExpense.status === "REJECTED" && selectedExpense.rejectionNote ? (
+                <View className="rounded-[12px] border border-[#FECACA] bg-[#FEF2F2] p-3.5">
+                  <Text className="text-[12px] font-bold text-[#DC2626]">
+                    Rejection Reason:
+                  </Text>
+                  <Text className="mt-1 text-[13px] text-[#B91C1C]">
+                    {selectedExpense.rejectionNote}
+                  </Text>
+                </View>
+              ) : null}
               {selectedExpense && uploadingReceiptIds[selectedExpense.id] ? (
                 <View className="flex-row items-center gap-2 rounded-[16px] bg-[#EAF3FA] p-4">
                   <ActivityIndicator size="small" color="#1D5478" />
