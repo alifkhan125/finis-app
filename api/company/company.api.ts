@@ -423,6 +423,8 @@ type BackendTaskResponseItem = {
     completionDecision: string | null;
     completionNotes: string | null;
     dueDate: string | null;
+    estimatedHours?: number | null;
+    price?: number;
   };
   floors: TaskResponseFloor[];
   location?: string;
@@ -441,6 +443,8 @@ type BackendTaskResponseItem = {
       floor?: { id: string; name: string; floorNumber?: number };
     };
   }>;
+  estimatedHours?: number | null;
+  price?: number;
 };
 
 type BackendSubTaskResponseItem = {
@@ -454,6 +458,8 @@ type BackendSubTaskResponseItem = {
   createdAt?: string;
   submittedAt?: string | null;
   completedAt?: string | null;
+  estimatedHours?: number | null;
+  price?: number;
   unit: {
     id: string;
     name: string;
@@ -517,7 +523,8 @@ function mapBackendTaskResponse(task: BackendTaskResponseItem): TaskListItem {
     priority: task.task.priority,
     status: task.task.status,
     dueDate: task.task.dueDate ?? "",
-    estimatedHours: null,
+    estimatedHours: task.task.estimatedHours ?? task.estimatedHours ?? null,
+    price: task.task.price ?? task.price,
     actualHours: null,
     createdAt: task.task.dueDate ?? new Date().toISOString(),
     updatedAt: task.task.dueDate ?? new Date().toISOString(),
@@ -575,6 +582,8 @@ function mapBackendSubTaskResponse(task: BackendSubTaskResponseItem): TaskSubTas
     createdAt: task.createdAt ?? new Date().toISOString(),
     submittedAt: task.submittedAt,
     completedAt: task.completedAt,
+    estimatedHours: task.estimatedHours,
+    price: task.price,
     unit: task.unit,
     subTaskUnits: task.subTaskUnits,
     units: task.units,
@@ -1650,6 +1659,7 @@ export type UpdateAdminTaskPayload = {
   priority?: string;
   dueDate?: string;
   estimatedHours?: number;
+  price?: number;
   actualHours?: number;
   expenseDescription?: string;
   expenseAmount?: number;

@@ -25,4 +25,5 @@ export type TaskItem = {
   rawStatus?: string;
   floorUnitSelections?: { floor: { id: string; name: string }; unit: { id: string; name: string } }[];
   estimatedHours?: number | null;
+  price?: number;
 };

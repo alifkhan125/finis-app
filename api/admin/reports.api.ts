@@ -77,6 +77,8 @@ export type AdminProjectInvoicesReport = {
     totalBudget: number;
     totalSpent: number;
     totalRemaining: number;
+    totalBillableSubTasks?: number;
+    totalInvoiceAmount?: number;
     byStatus: Record<string, number>;
   };
   projects: {
@@ -95,6 +97,20 @@ export type AdminProjectInvoicesReport = {
     spent: number | null;
     remaining: number | null;
     approvedExpenses: number;
+    billableSubTaskCount?: number;
+    invoiceTotal?: number;
+    invoiceLines?: {
+      subTaskId: string;
+      taskId: string;
+      taskTitle: string;
+      title: string;
+      quantity: number;
+      unitValue: number;
+      lineTotal: number;
+      completedAt?: string | null;
+      unit?: { id: string; name: string; floor?: { id: string; name: string } | null } | null;
+      worker?: { id: string; fullName: string } | null;
+    }[];
     taskCompletion: number;
     counts: {
       teamMembers: number;

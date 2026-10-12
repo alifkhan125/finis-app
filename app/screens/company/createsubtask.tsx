@@ -4,6 +4,7 @@ import TaskFloorUnitMultiSelect, {
   TaskFloorUnitSelection,
 } from "@/components/company/task/TaskFloorUnitMultiSelect";
 import { setTaskDraft } from "@/components/company/task/taskStore";
+import { useAuthStore } from "@/store/auth.store";
 import {
   useCreateSubTaskMutation,
   useUpdateSubTaskMutation,
@@ -40,7 +41,7 @@ function formatDate(value: Date) {
 }
 
 export default function CreateSubtaskRoute() {
-  const { projectId, parentTaskId, parentTaskTitle, editTaskTitle, editTaskDescription, editTaskPriority, editTaskDueDate, editTaskFloorUnits, editTaskEstimatedHours, taskId } = useLocalSearchParams<{
+  const { projectId, parentTaskId, parentTaskTitle, editTaskTitle, editTaskDescription, editTaskPriority, editTaskDueDate, editTaskFloorUnits, editTaskEstimatedHours, editTaskPrice, taskId } = useLocalSearchParams<{
     projectId?: string;
     parentTaskId?: string;
     parentTaskTitle?: string;
@@ -50,8 +51,11 @@ export default function CreateSubtaskRoute() {
     editTaskDueDate?: string;
     editTaskFloorUnits?: string;
     editTaskEstimatedHours?: string;
+    editTaskPrice?: string;
     taskId?: string;
   }>();
+  const currentUser = useAuthStore((state) => state.user);
+  const canManageTaskPrice = currentUser?.role === "admin" || currentUser?.role === "super_admin";
   const resolvedParentTaskTitle = Array.isArray(parentTaskTitle)
     ? parentTaskTitle[0]
     : parentTaskTitle;
@@ -82,6 +86,7 @@ export default function CreateSubtaskRoute() {
   const [dueDateValue, setDueDateValue] = useState(editTaskDueDate ? new Date(editTaskDueDate) : new Date());
 
   const [estimatedHours, setEstimatedHours] = useState(editTaskEstimatedHours ?? '');
+  const [price, setPrice] = useState(editTaskPrice ?? "");
 
   const [floorUnitSelections, setFloorUnitSelections] = useState<TaskFloorUnitSelection[]>(
     editTaskFloorUnits ? JSON.parse(editTaskFloorUnits) : []
@@ -190,6 +195,7 @@ export default function CreateSubtaskRoute() {
           unitIds: floorUnitSelections.map((selection) => selection.unit.id),
           dueDate: dueDate.trim() || formatDate(new Date()),
           estimatedHours: estimatedHours.trim() ? Number(estimatedHours) : undefined,
+          ...(canManageTaskPrice && { price: price.trim() ? Number(price) : 0 }),
         });
 
         router.replace({
@@ -209,6 +215,7 @@ export default function CreateSubtaskRoute() {
           unitIds: floorUnitSelections.map((selection) => selection.unit.id),
           dueDate: dueDate.trim() || formatDate(new Date()),
           estimatedHours: estimatedHours.trim() ? Number(estimatedHours) : undefined,
+          ...(canManageTaskPrice && { price: price.trim() ? Number(price) : 0 }),
         });
 
         router.replace({
@@ -248,6 +255,8 @@ export default function CreateSubtaskRoute() {
         description: description.trim(),
         priority: priority.toLowerCase(),
         dueDate: dueDate.trim() || formatDate(new Date()),
+        estimatedHours: estimatedHours.trim() ? Number(estimatedHours) : undefined,
+        ...(canManageTaskPrice && { price: price.trim() ? Number(price) : 0 }),
         floors: floorsPayload,
       });
 
@@ -362,6 +371,18 @@ export default function CreateSubtaskRoute() {
               keyboardType="numeric"
             />
           </View>
+
+          {canManageTaskPrice ? (
+            <View className="mt-4">
+              <TaskFormField
+                label="Internal Price"
+                placeholder="e.g. 150"
+                value={price}
+                onChangeText={setPrice}
+                keyboardType="decimal-pad"
+              />
+            </View>
+          ) : null}
 
           <TouchableOpacity
             activeOpacity={0.85}
