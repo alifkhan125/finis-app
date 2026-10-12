@@ -1425,6 +1425,7 @@ type BackendTaskDetailsResponse = {
     completionNotes: string | null;
     dueDate: string | null;
     estimatedHours?: number | null;
+    price?: number;
   };
   floors?: Array<{
     id: string;
@@ -1475,6 +1476,7 @@ export async function getTaskDetails(taskId: string): Promise<TaskDetailsData> {
     status: taskData.task.status,
     dueDate: taskData.task.dueDate ?? null,
     estimatedHours: taskData.task.estimatedHours ?? null,
+    price: taskData.task.price ?? 0,
     project: { name: taskData.project?.name ?? "" },
     floor: { name: firstFloor?.name ?? "" },
     room: { name: firstUnit?.name ?? "" },
@@ -1508,6 +1510,7 @@ type AdminSubTaskDetailResponse = {
   approvalNotes: string | null;
   dueDate: string | null;
   estimatedHours: number | null;
+  price?: number;
   task?: {
     id: string;
     title: string;
@@ -1586,6 +1589,7 @@ export async function getAdminSubTaskDetails(subTaskId: string): Promise<TaskDet
     status: subTask.status,
     dueDate: subTask.dueDate ?? null,
     estimatedHours: subTask.estimatedHours ?? null,
+    price: subTask.price ?? 0,
     project: { name: subTask.project?.name ?? subTask.task?.title ?? "" },
     floor: { name: "" },
     room: { name: firstUnit?.name ?? "" },

@@ -421,6 +421,8 @@ export default function AddCustomQuoteItemModal({
         selectedValue={measurementType}
         searchValue={measurementSearch}
         searchPlaceholder="Search measurement"
+        allowCustomValue
+        customValueLabel={(measurementSearch ?? "").trim() ? `Use "${(measurementSearch ?? "").trim()}"` : undefined}
         onChangeSearch={setMeasurementSearch}
         onSelect={(item) => {
           onChangeMeasurementType(item.value ?? item.name);

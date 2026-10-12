@@ -97,6 +97,7 @@ export default function TaskScreen({ projectId, onCreateTaskPress }: TaskScreenP
         allowSubTaskCreation: task.allowSubTaskCreation ?? true,
         approvalDecision: task.approvalDecision,
         completionDecision: task.completionDecision,
+        price: task.price,
         rawStatus: task.status,
         floorUnitSelections: (task as any).floorUnitSelections,
       }));

@@ -41,17 +41,32 @@ export default function UpdateTaskStatusModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
-        <View className="flex-1 justify-center bg-black/30 px-5">
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            backgroundColor: "rgba(0,0,0,0.3)",
+            paddingHorizontal: 20,
+          }}
+        >
           <TouchableWithoutFeedback>
-            <View className="rounded-[24px] border border-[#DCE3EA] bg-white p-5">
-              <Text className="text-[20px] font-semibold text-[#2B2B2B]">
+            <View
+              style={{
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: "#DCE3EA",
+                backgroundColor: "#FFFFFF",
+                padding: 20,
+              }}
+            >
+              <Text style={{ fontSize: 20, fontWeight: "600", color: "#2B2B2B" }}>
                 Update Status
               </Text>
               {task ? (
-                <Text className="mt-2 text-[14px] text-[#667085]">{task.title}</Text>
+                <Text style={{ marginTop: 8, fontSize: 14, color: "#667085" }}>{task.title}</Text>
               ) : null}
 
-              <View className="mt-5 gap-3">
+              <View style={{ marginTop: 20, gap: 12 }}>
                 {statusOptions.map((status) => {
                   const active = task?.status === status;
                   const tone = tones[status];
@@ -63,16 +78,22 @@ export default function UpdateTaskStatusModal({
                       activeOpacity={0.85}
                       disabled={isOptionDisabled}
                       onPress={() => onSelectStatus(status)}
-                      className="rounded-[14px] border px-4 py-3"
                       style={{
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        paddingHorizontal: 16,
+                        paddingVertical: 12,
                         borderColor: active ? tone.border : "#D6DCE3",
                         backgroundColor: active ? tone.bg : isOptionDisabled ? "#F1F5F9" : "#F8FAFC",
                         opacity: isOptionDisabled && !active ? 0.45 : 1,
                       }}
                     >
                       <Text
-                        className="text-[15px] font-medium"
-                        style={{ color: active ? tone.text : isOptionDisabled ? "#94A3B8" : "#2B2B2B" }}
+                        style={{
+                          fontSize: 15,
+                          fontWeight: "500",
+                          color: active ? tone.text : isOptionDisabled ? "#94A3B8" : "#2B2B2B",
+                        }}
                       >
                         {status}
                       </Text>
@@ -84,9 +105,18 @@ export default function UpdateTaskStatusModal({
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={onClose}
-                className="mt-5 h-[52px] items-center justify-center rounded-[14px] border border-[#D6DCE3] bg-white"
+                style={{
+                  marginTop: 20,
+                  height: 52,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: "#D6DCE3",
+                  backgroundColor: "#FFFFFF",
+                }}
               >
-                <Text className="text-[15px] font-medium text-[#2B2B2B]">Close</Text>
+                <Text style={{ fontSize: 15, fontWeight: "500", color: "#2B2B2B" }}>Close</Text>
               </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>

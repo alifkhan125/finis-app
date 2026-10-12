@@ -161,6 +161,7 @@ export default function SubtasksRoute() {
         rawStatus: task.status,
         floorUnitSelections: floorUnitSelections,
         estimatedHours: task.estimatedHours,
+        price: task.price,
       };
     });
   }, [flatSubtasksQuery.data, groupTitle, groupedSubtasksQuery.data, projectId, taskDetailsQuery.data, projectFloorsData]);

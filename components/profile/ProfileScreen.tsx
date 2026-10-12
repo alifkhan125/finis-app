@@ -97,6 +97,7 @@ export default function ProfileScreen() {
 
             {canOpenReport ? <AdminMenuItem icon="document-text-outline" label="Report" route="/screens/profile/report" /> : null}
             {canOpenExpenses ? <AdminMenuItem icon="receipt-outline" label="Expense" route="/screens/profile/expenses" /> : null}
+            {isAdmin ? <AdminMenuItem icon="reader-outline" label="Quotation" route="/screens/profile/quotes" /> : null}
           </View>
         </View>
 

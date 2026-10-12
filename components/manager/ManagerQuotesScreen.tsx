@@ -4,6 +4,7 @@ import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  createManagerQuote,
   deleteManagerQuote,
   getManagerQuotes,
   getQuoteSelectors,
@@ -274,11 +275,6 @@ Please find the attached quote PDF.`,
       return;
     }
 
-    if (!customCategoryId) {
-      toast.error("Select a category for the item.");
-      return;
-    }
-
     if (!customMeasurementType) {
       toast.error("Select a unit of measurement.");
       return;
@@ -287,36 +283,50 @@ Please find the attached quote PDF.`,
     const nextQuantity = Number(customQuantity) || 1;
     const nextUnitPrice = Number(customUnitPrice) || 0;
 
-    quickAddQuoteWorkItem({
-      categoryId: customCategoryId,
-      projectType: projectType.toLowerCase(),
-      propertyType: propertyType.toLowerCase(),
-      unitType: unitType.toLowerCase(),
-      name: customTitle.trim(),
-      measurementType: customMeasurementType,
-      quantity: nextQuantity,
-      unitCost: nextUnitPrice,
-      notes: "",
-    })
+    const selectedCategory = categoryOptions.find(
+      (item) => item.id === customCategoryId || item.value === customCategoryId,
+    );
+
+    const addQuoteRequest = customCategoryId
+      ? quickAddQuoteWorkItem({
+          categoryId: customCategoryId,
+          projectType: projectType.toLowerCase(),
+          propertyType: propertyType.toLowerCase(),
+          unitType: unitType.toLowerCase(),
+          name: customTitle.trim(),
+          measurementType: customMeasurementType,
+          quantity: nextQuantity,
+          unitCost: nextUnitPrice,
+          notes: "",
+        }).then((createdQuote) => createdQuote.quote)
+      : createManagerQuote({
+          projectType: projectType.toLowerCase(),
+          propertyType: propertyType.toLowerCase(),
+          unitType: unitType.toLowerCase(),
+          title: customTitle.trim(),
+          quantity: nextQuantity,
+          unit: customMeasurementType,
+          unitPrice: nextUnitPrice,
+          notes: "",
+          isCustom: true,
+        });
+
+    addQuoteRequest
       .then((createdQuote) => {
         const measurementLabel = measurementOptions.find(
           (item) => item.value === customMeasurementType || item.name === customMeasurementType,
         )?.name ?? customMeasurementType;
 
-        const selectedCategory = categoryOptions.find(
-          (item) => item.id === customCategoryId || item.value === customCategoryId,
-        );
-
         setWorkGroups((current) =>
           addCustomQuoteWorkItem(
             current,
-            customCategoryId,
+            customCategoryId || "custom-quotes",
             selectedCategory?.name ?? "Custom Items",
-            createdQuote.quote.id,
-            createdQuote.quote.title,
-            String(createdQuote.quote.quantity),
-            createdQuote.quote.unit ?? measurementLabel,
-            String(createdQuote.quote.unitPrice),
+            createdQuote.id,
+            createdQuote.title,
+            String(createdQuote.quantity),
+            createdQuote.unit ?? measurementLabel,
+            String(createdQuote.unitPrice),
           ),
         );
         void queryClient.fetchQuery({

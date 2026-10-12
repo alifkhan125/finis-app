@@ -61,7 +61,7 @@ export default function TaskCard({
   const statusKey = task.status?.toLowerCase() || "pending";
 
   const statusStyle = STATUS_CONFIG[statusKey] || STATUS_CONFIG.pending;
-  const isAdminRole = currentUserRole === "admin";
+  const isAdminRole = currentUserRole === "admin" || currentUserRole === "super_admin";
   const isManagerRole = currentUserRole === "manager";
   const isMainTaskCard =
     (isAdminRole || isManagerRole) && Boolean(onPressAssignWorker || onPressUpdateStatus);
@@ -89,6 +89,7 @@ export default function TaskCard({
 
   const shouldShowAssignWorkerButton = isAdminRole || isManagerRole;
   const resolvedActionDisabled = actionDisabled;
+  const canShowPrice = isAdminRole && task.price !== undefined && task.price !== null;
 
   return (
     <TouchableOpacity
@@ -178,9 +179,24 @@ export default function TaskCard({
           </Text>
         </View>
       </View>}
+{/* bg-[#EEF8F1] px-3 border-[#D8EFE0] rounded-lg border text-[#168044] text-[#168044]*/}
+      {canShowPrice ? (
+        <View className="flex-row items-center justify-between    py-2"> 
+          
+          <View className="flex-row items-center">
+            <Ionicons name="cash-outline" size={17} color="#4C596C" />
+            <Text className="ml-1.5 text-[14px] text-[#4C596C]">
+              Internal Price
+            </Text>
+          </View>
+          <Text className="ml-1.5 text-[14px] text-[#4C596C]">
+            ${Number(task.price || 0).toFixed(2)}
+          </Text>
+        </View>
+      ) : null}
 
       {/* Divider */}
-      {isMainTaskCard || isSubtaskCard ? <View className="mt-3 mb-3 h-[0.5px] bg-black/10" /> : null}
+      {isMainTaskCard || isSubtaskCard ? <View className="mt-1 mb-3 h-[0.5px] bg-black/10" /> : null}
 
       {isMainTaskCard ? (
         <View className="flex-row items-center justify-between gap-4">

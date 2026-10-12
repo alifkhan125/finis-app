@@ -103,6 +103,10 @@ export default function TaskDetailsScreen({
   const canReviewTask =
     (currentUserRole === "admin" || currentUserRole === "manager") &&
     normalizedStatus === "review";
+  const canSeeInternalPrice =
+    (currentUserRole === "admin" || currentUserRole === "super_admin") &&
+    task?.price !== undefined &&
+    task?.price !== null;
 
   const reportId = task?.reports?.[0]?.id;
   const taskId = task?.id;
@@ -279,6 +283,13 @@ export default function TaskDetailsScreen({
               : "—"
           }
         />
+        {canSeeInternalPrice ? (
+          <TaskDetailMetaItem
+            icon="cash-outline"
+            label="Internal Price"
+            value={formatMoney(Number(task?.price ?? 0))}
+          />
+        ) : null}
       </View>
 
       <TaskPhotoCard title="Before Photo" imageUrl={beforePhoto} />
@@ -339,6 +350,11 @@ export default function TaskDetailsScreen({
                   {subTask.estimatedHours ? (
                     <Text className="mt-1 text-[12px] leading-[18px] text-[#4B5563]">
                       Estimated Hours: {subTask.estimatedHours}
+                    </Text>
+                  ) : null}
+                  {canSeeInternalPrice && subTask.price !== undefined && subTask.price !== null ? (
+                    <Text className="mt-1 text-[12px] font-semibold leading-[18px] text-[#168044]">
+                      Internal Price: {formatMoney(Number(subTask.price ?? 0))}
                     </Text>
                   ) : null}
                 </View>

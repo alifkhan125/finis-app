@@ -277,6 +277,7 @@ export type TaskListItem = {
   status: string;
   dueDate: string;
   estimatedHours: number | null;
+  price?: number;
   actualHours: number | null;
   createdAt: string;
   updatedAt: string;
@@ -548,6 +549,7 @@ export type TaskDetailsData = {
   status: string;
   dueDate: string | null;
   estimatedHours?: number | null;
+  price?: number;
   project: { name: string };
   floor: { name: string };
   room: { name: string };
