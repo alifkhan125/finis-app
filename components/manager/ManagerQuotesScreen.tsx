@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { useEffect } from "react";
+import React, { useMemo, useState , useEffect } from "react";
+
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

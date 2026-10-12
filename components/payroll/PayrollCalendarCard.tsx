@@ -21,10 +21,10 @@ export type PayrollCalendarMode =
   | "monthly"
   | "bimonthly";
 
-const PERIOD_OPTIONS: Array<{
+const PERIOD_OPTIONS: {
   label: string;
   value: PayrollCalendarMode;
-}> = [
+}[] = [
   { label: "Custom", value: "custom" },
   { label: "Weekly", value: "weekly" },
   { label: "Biweekly", value: "biweekly" },

@@ -337,7 +337,7 @@ export default function WorkScheduleScreen() {
 
                   {cleanReason ? (
                     <Text style={{ fontSize: 13, color: THEME.colors.textSecondary, marginTop: 4, fontStyle: 'italic' }}>
-                      Reason: "{cleanReason}"
+                      {`Reason: "${cleanReason}"`}
                     </Text>
                   ) : null}
                 </View>

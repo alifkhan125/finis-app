@@ -1,5 +1,8 @@
 nodeLinker: hoisted
 
+overrides:
+  react-native-css-interop: 0.2.7
+
 allowBuilds:
   '@firebase/util': true
   protobufjs: true

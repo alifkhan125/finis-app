@@ -13,10 +13,10 @@ type GeofenceMapCardProps = {
   projectName?: string;
   projectSite?: string;
   selectedProjectId?: string;
-  initialPolygonCoords?: Array<{ lat: number; lng: number }>;
+  initialPolygonCoords?: { lat: number; lng: number }[];
   isEditingEnabled?: boolean;
-  liveWorkers?: Array<{ workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }>;
-  onPolygonChange?: (points: Array<{ lat: number; lng: number }>) => void;
+  liveWorkers?: { workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }[];
+  onPolygonChange?: (points: { lat: number; lng: number }[]) => void;
   onMapReady?: () => void;
   reloadToken?: number;
 };

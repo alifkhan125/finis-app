@@ -8,6 +8,8 @@ import PayrollCalendarCard from "./PayrollCalendarCard";
 import { useWorkerPayrollQuery } from "@/hooks/worker/payroll";
 import { formatCurrency } from "./utils";
 
+import { type PayrollCalendarMode } from "./PayrollCalendarCard";
+
 function parseHourlyRate(value: string | number | null | undefined) {
   const numericRate = Number(value);
   return Number.isFinite(numericRate) ? numericRate : 0;
@@ -30,8 +32,6 @@ function formatDateLabel(value?: string | null) {
     year: "numeric",
   });
 }
-
-import { type PayrollCalendarMode } from "./PayrollCalendarCard";
 
 export default function WorkerPayrollScreen() {
   const [monthDate, setMonthDate] = useState(new Date());

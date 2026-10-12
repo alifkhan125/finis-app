@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Image } from "react-native";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Image , Text, TouchableOpacity, View } from "react-native";
+
 import { WorkerPayroll } from "./types";
 import { formatCurrency } from "./utils";
 const placeholderAvatar = require("../../assets/images/placeholder-person.png");

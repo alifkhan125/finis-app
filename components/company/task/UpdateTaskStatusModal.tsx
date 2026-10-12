@@ -16,6 +16,7 @@ const tones: Record<TaskStatus, { bg: string; text: string; border: string }> = 
   Inactive: { bg: "#F2F4F7", text: "#667085", border: "#D0D5DD" },
   Completed: { bg: "#E8F5EE", text: "#0F8A61", border: "#BEE3D2" },
   Review: { bg: "#F1EDFF", text: "#6941C6", border: "#D9CCFF" },
+  Revision: { bg: "#FFF1F3", text: "#C01048", border: "#FDA4AF" },
 };
 
 type UpdateTaskStatusModalProps = {

@@ -42,14 +42,14 @@ export default function GeofencingRoute() {
   const [isProjectSheetVisible, setIsProjectSheetVisible] = useState(false);
   const [isFullHistoryVisible, setIsFullHistoryVisible] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
-  const [draftPoints, setDraftPoints] = useState<Array<{ lat: number; lng: number }>>([]);
-  const [liveWorkers, setLiveWorkers] = useState<Array<{ workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }>>([]);
+  const [draftPoints, setDraftPoints] = useState<{ lat: number; lng: number }[]>([]);
+  const [liveWorkers, setLiveWorkers] = useState<{ workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }[]>([]);
   const [mapReloadToken, setMapReloadToken] = useState(0);
   const token = useAuthStore((state) => state.token);
   const queryClient = useQueryClient();
   const socketRef = React.useRef<Socket | null>(null);
   const hasInitializedProjectRef = React.useRef(false);
-  const draftPointsByProjectRef = React.useRef<Record<string, Array<{ lat: number; lng: number }>>>({});
+  const draftPointsByProjectRef = React.useRef<Record<string, { lat: number; lng: number }[]>>({});
   const hiddenWorkerIdsRef = React.useRef(new Set<string>());
 
   const getLocationLogStatus = (eventType?: string) => {
@@ -105,16 +105,16 @@ export default function GeofencingRoute() {
       socket.emit("get_live_workers", { projectId: selectedProjectId });
     };
 
-    const applyLiveWorkers = (payload: { workers?: Array<{ workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }> }) => {
+    const applyLiveWorkers = (payload: { workers?: { workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }[] }) => {
       setLiveWorkers((payload.workers ?? []).filter((worker) => !hiddenWorkerIdsRef.current.has(worker.workerId)));
     };
 
-    const handleActiveWorkers = (payload: { workers?: Array<{ workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }> }) => {
+    const handleActiveWorkers = (payload: { workers?: { workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }[] }) => {
       console.log("[Geofencing] active_workers:", payload);
       applyLiveWorkers(payload);
     };
 
-    const handleLiveWorkers = (payload: { workers?: Array<{ workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }> }) => {
+    const handleLiveWorkers = (payload: { workers?: { workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }[] }) => {
       console.log("[Geofencing] live_workers:", payload);
       applyLiveWorkers(payload);
     };

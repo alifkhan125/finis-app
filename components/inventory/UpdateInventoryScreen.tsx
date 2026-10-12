@@ -125,7 +125,7 @@ function SelectorBottomSheet({
                 className="mb-3 rounded-[12px] border border-[#1F506D] bg-[#EEF6FB] px-4 py-3"
               >
                 <Text className="text-[14px] font-medium text-[#1F506D]">
-                  Create "{searchValue.trim()}"
+                  {`Create "${searchValue.trim()}"`}
                 </Text>
               </TouchableOpacity>
             ) : null}

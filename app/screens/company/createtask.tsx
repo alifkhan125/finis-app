@@ -118,7 +118,7 @@ export default function CreateTaskRoute() {
           unitIds: [selection.unit.id],
         });
         return accumulator;
-      }, [] as Array<{ floorId: string; unitIds: string[] }>);
+      }, [] as { floorId: string; unitIds: string[] }[]);
 
       if (taskId) {
         await updateTaskMutation.mutateAsync({

@@ -1,6 +1,6 @@
 import BackTitleHeader from "@/components/common/BackTitleHeader";
 import CompanyCard from "@/components/company/CompanyCard";
-import { useCompaniesQuery, useDeleteCompanyMutation } from "@/hooks/company/company";
+import { useCompaniesQuery, useDeleteCompanyMutation , useGenerateCompanyShareLinkMutation } from "@/hooks/company/company";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
@@ -16,11 +16,11 @@ import {
   View,
   Modal,
   Alert,
-} from "react-native";
+ Share } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
-import { Share } from "react-native";
-import { useGenerateCompanyShareLinkMutation } from "@/hooks/company/company";
+
+
 
 export default function Company() {
   const router = useRouter();

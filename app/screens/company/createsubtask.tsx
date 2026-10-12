@@ -240,7 +240,7 @@ export default function CreateSubtaskRoute() {
           unitIds: [selection.unit.id],
         });
         return accumulator;
-      }, [] as Array<{ floorId: string; unitIds: string[] }>);
+      }, [] as { floorId: string; unitIds: string[] }[]);
 
       const response = await createTaskMutation.mutateAsync({
         projectId,

@@ -12,14 +12,14 @@ export function generateMapHTML(
   userLng: number,
   zoneName = "Selected Project",
   zoneSubtext = "",
-  initialPolygonCoords: Array<{ lat: number; lng: number }> = [],
-  liveWorkers: Array<{
+  initialPolygonCoords: { lat: number; lng: number }[] = [],
+  liveWorkers: {
     workerId: string;
     workerName: string;
     lat: number;
     lng: number;
     isInsideZone?: boolean;
-  }> = [],
+  }[] = [],
   googleMapsApiKey = "",
   isEditingEnabled = true,
 ) {
