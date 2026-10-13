@@ -423,6 +423,8 @@ type BackendTaskResponseItem = {
     completionDecision: string | null;
     completionNotes: string | null;
     dueDate: string | null;
+    estimatedHours?: number | null;
+    price?: number;
   };
   floors: TaskResponseFloor[];
   location?: string;
@@ -441,6 +443,8 @@ type BackendTaskResponseItem = {
       floor?: { id: string; name: string; floorNumber?: number };
     };
   }>;
+  estimatedHours?: number | null;
+  price?: number;
 };
 
 type BackendSubTaskResponseItem = {
@@ -454,6 +458,8 @@ type BackendSubTaskResponseItem = {
   createdAt?: string;
   submittedAt?: string | null;
   completedAt?: string | null;
+  estimatedHours?: number | null;
+  price?: number;
   unit: {
     id: string;
     name: string;
@@ -517,7 +523,8 @@ function mapBackendTaskResponse(task: BackendTaskResponseItem): TaskListItem {
     priority: task.task.priority,
     status: task.task.status,
     dueDate: task.task.dueDate ?? "",
-    estimatedHours: null,
+    estimatedHours: task.task.estimatedHours ?? task.estimatedHours ?? null,
+    price: task.task.price ?? task.price,
     actualHours: null,
     createdAt: task.task.dueDate ?? new Date().toISOString(),
     updatedAt: task.task.dueDate ?? new Date().toISOString(),
@@ -575,6 +582,8 @@ function mapBackendSubTaskResponse(task: BackendSubTaskResponseItem): TaskSubTas
     createdAt: task.createdAt ?? new Date().toISOString(),
     submittedAt: task.submittedAt,
     completedAt: task.completedAt,
+    estimatedHours: task.estimatedHours,
+    price: task.price,
     unit: task.unit,
     subTaskUnits: task.subTaskUnits,
     units: task.units,
@@ -1416,6 +1425,7 @@ type BackendTaskDetailsResponse = {
     completionNotes: string | null;
     dueDate: string | null;
     estimatedHours?: number | null;
+    price?: number;
   };
   floors?: Array<{
     id: string;
@@ -1466,6 +1476,7 @@ export async function getTaskDetails(taskId: string): Promise<TaskDetailsData> {
     status: taskData.task.status,
     dueDate: taskData.task.dueDate ?? null,
     estimatedHours: taskData.task.estimatedHours ?? null,
+    price: taskData.task.price ?? 0,
     project: { name: taskData.project?.name ?? "" },
     floor: { name: firstFloor?.name ?? "" },
     room: { name: firstUnit?.name ?? "" },
@@ -1499,6 +1510,7 @@ type AdminSubTaskDetailResponse = {
   approvalNotes: string | null;
   dueDate: string | null;
   estimatedHours: number | null;
+  price?: number;
   task?: {
     id: string;
     title: string;
@@ -1577,6 +1589,7 @@ export async function getAdminSubTaskDetails(subTaskId: string): Promise<TaskDet
     status: subTask.status,
     dueDate: subTask.dueDate ?? null,
     estimatedHours: subTask.estimatedHours ?? null,
+    price: subTask.price ?? 0,
     project: { name: subTask.project?.name ?? subTask.task?.title ?? "" },
     floor: { name: "" },
     room: { name: firstUnit?.name ?? "" },
@@ -1650,6 +1663,7 @@ export type UpdateAdminTaskPayload = {
   priority?: string;
   dueDate?: string;
   estimatedHours?: number;
+  price?: number;
   actualHours?: number;
   expenseDescription?: string;
   expenseAmount?: number;

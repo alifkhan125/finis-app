@@ -12,6 +12,7 @@ const toneByStatus: Record<TaskStatus, { bg: string; text: string }> = {
   Inactive: { bg: "#F2F4F7", text: "#667085" },
   Completed: { bg: "#D6E6E1", text: "#0F8A61" },
   Review: { bg: "#E9E5FF", text: "#6941C6" },
+  Revision: { bg: "#FFE4E8", text: "#C01048" },
 };
 
 export default function TaskStatusPill({ status }: TaskStatusPillProps) {

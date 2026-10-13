@@ -277,6 +277,7 @@ export type TaskListItem = {
   status: string;
   dueDate: string;
   estimatedHours: number | null;
+  price?: number;
   actualHours: number | null;
   createdAt: string;
   updatedAt: string;
@@ -360,6 +361,7 @@ export type CreateTaskPayload = {
     unitIds?: string[];
   }[];
   estimatedHours?: number;
+  price?: number;
 };
 
 export type CreateTaskResponse = ApiResponse<{ id: string }>;
@@ -373,6 +375,7 @@ export type CreateSubTaskPayload = {
   taskAssigneeId?: string;
   dueDate?: string;
   estimatedHours?: number;
+  price?: number;
 };
 
 export type CreateSubTaskResponse = ApiResponse<{
@@ -439,6 +442,7 @@ export type TaskSubTaskListItem = {
     inventories: number;
   };
   estimatedHours?: number | null;
+  price?: number;
 };
 
 export type SubTaskGroupItem = {
@@ -478,6 +482,7 @@ export type TaskDetailsSubTask = {
   title: string;
   description: string | null;
   estimatedHours?: number;
+  price?: number;
   status: string;
   approvalDecision: string;
   createdAt: string;
@@ -544,6 +549,7 @@ export type TaskDetailsData = {
   status: string;
   dueDate: string | null;
   estimatedHours?: number | null;
+  price?: number;
   project: { name: string };
   floor: { name: string };
   room: { name: string };

@@ -42,7 +42,7 @@ export default function ProjectAnalysisScreen({
       const mappedTasks = data.checklist.map((item) => ({
         id: item.floorId,
         title: item.floorName,
-        subtitle: item.tasks.map((t) => t.taskName || t.title).join(", ") || "No tasks",
+        subtitle: item.tasks.map((t) => t.taskName).join(", ") || "No tasks",
         units: `${item.tasks.length} Tasks`,
         date: "Today",
         status: mapStatus(item.floorStatus),

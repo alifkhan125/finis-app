@@ -97,6 +97,7 @@ export default function TaskScreen({ projectId, onCreateTaskPress }: TaskScreenP
         allowSubTaskCreation: task.allowSubTaskCreation ?? true,
         approvalDecision: task.approvalDecision,
         completionDecision: task.completionDecision,
+        price: task.price,
         rawStatus: task.status,
         floorUnitSelections: (task as any).floorUnitSelections,
       }));
@@ -193,6 +194,7 @@ export default function TaskScreen({ projectId, onCreateTaskPress }: TaskScreenP
                       editTaskDescription: task.description || "",
                       editTaskPriority: task.priority || "MEDIUM",
                       editTaskDueDate: task.dueDate || "",
+                      editTaskPrice: task.price != null ? String(task.price) : "",
                       editTaskFloorUnits: task.floorUnitSelections?.length 
                         ? JSON.stringify(task.floorUnitSelections) 
                         : (task.floorId && task.unitId ? JSON.stringify([{ floor: { id: task.floorId, name: task.floorName }, unit: { id: task.unitId, name: task.unitName } }]) : ""),

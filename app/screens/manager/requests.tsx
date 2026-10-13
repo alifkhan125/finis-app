@@ -116,7 +116,7 @@ export default function ManagerRequestsScreen() {
 
               {req.reason && (
                 <View style={{ backgroundColor: "#F1F5F9", padding: 10, borderRadius: 8, marginBottom: 12 }}>
-                  <Text style={{ fontSize: 13, color: THEME.colors.textMain }}>"{req.reason}"</Text>
+                  <Text style={{ fontSize: 13, color: THEME.colors.textMain }}>{`"${req.reason}"`}</Text>
                 </View>
               )}
 

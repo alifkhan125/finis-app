@@ -1,6 +1,6 @@
 import BackTitleHeader from "@/components/common/BackTitleHeader";
 import AssignedProjectCard from "@/components/company/assignedprojects/AssignedProjectCard";
-import { useCompanyProjectsQuery, useDeleteProjectMutation } from "@/hooks/company/company";
+import { useCompanyProjectsQuery, useDeleteProjectMutation , useGenerateProjectShareLinkMutation } from "@/hooks/company/company";
 import type { CompanyProjectTeamMember } from "@/types/company.types";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
@@ -14,11 +14,11 @@ import {
   View,
   Alert,
   Modal,
-} from "react-native";
+ Share } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
-import { Share } from "react-native";
-import { useGenerateProjectShareLinkMutation } from "@/hooks/company/company";
+
+
 import { Ionicons } from "@expo/vector-icons";
 import { usePullToRefresh } from "@/hooks/common/usePullToRefresh";
 

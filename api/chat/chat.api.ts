@@ -29,6 +29,9 @@ export type ChatThread = {
   lastMessage: ChatThreadLastMessage | null;
   unreadCount: number;
   participants: ChatParticipant[];
+  isBlocked?: boolean;
+  blockedByMe?: boolean;
+  blockedByOther?: boolean;
 };
 
 export type ChatThreadListResponse = {

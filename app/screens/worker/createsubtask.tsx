@@ -32,10 +32,10 @@ type TaskFloorParam = {
   id: string;
   name: string;
   floorNumber?: number;
-  units: Array<{
+  units: {
     id: string;
     name: string;
-  }>;
+  }[];
 };
 
 type TaskFloorUnitSelection = {

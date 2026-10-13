@@ -18,26 +18,26 @@ export type WorkerGroupedTaskItem = {
   project?: { id?: string; name?: string } | null;
   floor?: { id?: string; name?: string; floorNumber?: number } | null;
   room?: { id?: string; name?: string; roomNumber?: number } | null;
-  floors?: Array<{
+  floors?: {
     id: string;
     name: string;
     floorNumber?: number;
-    units: Array<{
+    units: {
       id: string;
       name: string;
       status?: string;
       approvalDecision?: string | null;
       canCreateSubTask?: boolean;
-      subTasks: Array<{
+      subTasks: {
         id: string;
         title?: string;
         status?: string;
         approvalDecision?: string | null;
         action?: string | null;
         reportCount?: number;
-      }>;
-    }>;
-  }>;
+      }[];
+    }[];
+  }[];
 };
 
 type TaskGroup = {
@@ -48,26 +48,26 @@ type TaskGroup = {
   status?: string;
   action?: string | null;
   sourceTask?: WorkerGroupedTaskItem;
-  floors: Array<{
+  floors: {
     id: string;
     name: string;
-    units: Array<{
+    units: {
       id: string;
       name: string;
       status?: string;
       approvalDecision?: string | null;
       canCreateSubTask?: boolean;
-      subTasks: Array<{
+      subTasks: {
         id: string;
         title: string;
         status?: string;
         approvalDecision?: string | null;
         action?: string | null;
-      }>;
+      }[];
       sourceTask?: WorkerGroupedTaskItem;
       actionTask?: WorkerGroupedTaskItem;
-    }>;
-  }>;
+    }[];
+  }[];
 };
 
 const STATUS_STYLE: Record<string, { label: string; bg: string; text: string; dot: string }> = {

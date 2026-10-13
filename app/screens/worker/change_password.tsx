@@ -10,12 +10,12 @@ import {
     TextInput,
     TouchableOpacity,
     View,
-} from "react-native";
+ ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useChangePassword } from "@/hooks/auth/auth";
 import { toast } from "sonner-native";
 import { isAxiosError } from "axios";
-import { ActivityIndicator } from "react-native";
+
 
 const THEME = {
   colors: {

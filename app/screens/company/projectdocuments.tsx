@@ -16,7 +16,7 @@ import { toast } from "sonner-native";
 
 type DocumentFilter = "all" | "project" | "task" | "expense";
 
-const DOCUMENT_FILTERS: Array<{ label: string; value: DocumentFilter }> = [
+const DOCUMENT_FILTERS: { label: string; value: DocumentFilter }[] = [
   { label: "All", value: "all" },
   { label: "Project", value: "project" },
   { label: "Task", value: "task" },

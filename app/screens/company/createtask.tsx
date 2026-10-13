@@ -4,6 +4,7 @@ import TaskFloorUnitMultiSelect, {
   TaskFloorUnitSelection,
 } from "@/components/company/task/TaskFloorUnitMultiSelect";
 import { setTaskDraft } from "@/components/company/task/taskStore";
+import { useAuthStore } from "@/store/auth.store";
 import {
   useCreateTaskMutation,
   useUpdateTaskMutation,
@@ -38,7 +39,7 @@ function formatDate(value: Date) {
 }
 
 export default function CreateTaskRoute() {
-  const { projectId, parentTaskTitle, editTaskTitle, editTaskDescription, editTaskPriority, editTaskDueDate, editTaskFloorUnits, taskId } = useLocalSearchParams<{
+  const { projectId, parentTaskTitle, editTaskTitle, editTaskDescription, editTaskPriority, editTaskDueDate, editTaskFloorUnits, editTaskPrice, taskId } = useLocalSearchParams<{
     projectId?: string;
     parentTaskTitle?: string;
     editTaskTitle?: string;
@@ -46,8 +47,11 @@ export default function CreateTaskRoute() {
     editTaskPriority?: "LOW" | "MEDIUM" | "HIGH";
     editTaskDueDate?: string;
     editTaskFloorUnits?: string;
+    editTaskPrice?: string;
     taskId?: string;
   }>();
+  const currentUser = useAuthStore((state) => state.user);
+  const canManageTaskPrice = currentUser?.role === "admin" || currentUser?.role === "super_admin";
   const resolvedParentTaskTitle = Array.isArray(parentTaskTitle)
     ? parentTaskTitle[0]
     : parentTaskTitle;
@@ -67,6 +71,7 @@ export default function CreateTaskRoute() {
   const [dueDateValue, setDueDateValue] = useState(editTaskDueDate ? new Date(editTaskDueDate) : new Date());
 
   const [estimatedHours, setEstimatedHours] = useState('');
+  const [price, setPrice] = useState(editTaskPrice ?? "");
 
   const [floorUnitSelections, setFloorUnitSelections] = useState<TaskFloorUnitSelection[]>([]);
   const [allowSubTaskCreation, setAllowSubTaskCreation] = useState(true);
@@ -118,7 +123,7 @@ export default function CreateTaskRoute() {
           unitIds: [selection.unit.id],
         });
         return accumulator;
-      }, [] as Array<{ floorId: string; unitIds: string[] }>);
+      }, [] as { floorId: string; unitIds: string[] }[]);
 
       if (taskId) {
         await updateTaskMutation.mutateAsync({
@@ -129,6 +134,7 @@ export default function CreateTaskRoute() {
             priority: priority.toLowerCase(),
             dueDate: dueDate.trim() || formatDate(new Date()),
             estimatedHours: estimatedHours.trim() ? Number(estimatedHours) : undefined,
+            ...(canManageTaskPrice && { price: price.trim() ? Number(price) : 0 }),
             allowSubTaskCreation,
             ...(floorsPayload.length > 0 && { floors: floorsPayload }),
           },
@@ -145,6 +151,7 @@ export default function CreateTaskRoute() {
         priority: priority.toLowerCase(),
         dueDate: dueDate.trim() || formatDate(new Date()),
         estimatedHours: estimatedHours.trim() ? Number(estimatedHours) : undefined,
+        ...(canManageTaskPrice && { price: price.trim() ? Number(price) : 0 }),
         allowSubTaskCreation,
         floors: floorsPayload,
       });
@@ -259,6 +266,18 @@ export default function CreateTaskRoute() {
                 keyboardType="numeric"
               />
             </View>
+
+            {canManageTaskPrice ? (
+              <View className="mt-4">
+                <TaskFormField
+                  label="Internal Price"
+                  placeholder="e.g. 150"
+                  value={price}
+                  onChangeText={setPrice}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            ) : null}
 
             <TouchableOpacity
               activeOpacity={0.85}

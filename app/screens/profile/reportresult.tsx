@@ -40,6 +40,7 @@ type Invoice = {
   progress: number;
   billed: string;
   remaining: string;
+  billableUnits: number;
 };
 
 type Worker = {
@@ -219,7 +220,7 @@ function InvoiceCard({ invoice }: { invoice: Invoice }) {
       <View className="mt-4 flex-row items-end justify-between">
         <View>
           <Text className="text-[11px] font-bold tracking-[0.5px] text-[#94A3B8]">
-            BILLED TO DATE
+            INVOICE TOTAL
           </Text>
           <Text className="mt-1 text-[17px] font-bold text-[#111827]">
             {invoice.billed}
@@ -227,10 +228,10 @@ function InvoiceCard({ invoice }: { invoice: Invoice }) {
         </View>
         <View>
           <Text className="text-[11px] font-bold tracking-[0.5px] text-[#94A3B8]">
-            REMAINING
+            BILLABLE UNITS
           </Text>
           <Text className="mt-1 text-[15px] text-[#6B7280]">
-            {invoice.remaining}
+            {invoice.billableUnits}
           </Text>
         </View>
         <TouchableOpacity
@@ -500,10 +501,11 @@ export default function ReportResultScreen() {
     company: project.company.name,
     status: formatStatusLabel(project.status),
     progress: project.progress ?? 0,
-    billed: formatCurrency(project.spent ?? project.approvedExpenses ?? 0),
+    billed: formatCurrency(project.invoiceTotal ?? 0),
     remaining: formatCurrency(
       project.remaining ?? Math.max((project.budget ?? 0) - (project.spent ?? 0), 0),
     ),
+    billableUnits: project.billableSubTaskCount ?? 0,
   }));
 
   const workerCards: Worker[] = (performanceReport?.workers ?? []).map((item) => ({
@@ -631,10 +633,10 @@ export default function ReportResultScreen() {
 
             <View className="mt-5 rounded-lg border-l-4 border-[#1D5478] bg-white px-4 py-6">
               <Text className="text-center text-[34px] font-extrabold text-[#1D5478]">
-                {formatCurrency(invoiceReport?.summary.totalBudget)}
+                {formatCurrency(invoiceReport?.summary.totalInvoiceAmount)}
               </Text>
               <Text className="mt-1 text-center text-[12px] font-bold tracking-[1px] text-[#94A3B8]">
-                TOTAL PROJECT BUDGET
+                TOTAL INVOICE AMOUNT
               </Text>
             </View>
 

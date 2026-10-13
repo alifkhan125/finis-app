@@ -23,6 +23,7 @@ export type TaskItem = {
   approvalDecision?: string | null;
   completionDecision?: string | null;
   rawStatus?: string;
-  floorUnitSelections?: Array<{ floor: { id: string; name: string }; unit: { id: string; name: string } }>;
+  floorUnitSelections?: { floor: { id: string; name: string }; unit: { id: string; name: string } }[];
   estimatedHours?: number | null;
+  price?: number;
 };

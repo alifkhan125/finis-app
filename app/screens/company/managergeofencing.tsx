@@ -38,8 +38,8 @@ import { io, type Socket } from "socket.io-client";
 export default function ManagerGeofencingRoute() {
   const { id: projectIdParam } = useLocalSearchParams<{ id?: string }>();
   const projectId = typeof projectIdParam === "string" ? projectIdParam : undefined;
-  const [draftPoints, setDraftPoints] = useState<Array<{ lat: number; lng: number }>>([]);
-  const [liveWorkers, setLiveWorkers] = useState<Array<{ workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }>>([]);
+  const [draftPoints, setDraftPoints] = useState<{ lat: number; lng: number }[]>([]);
+  const [liveWorkers, setLiveWorkers] = useState<{ workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }[]>([]);
   const [isFullHistoryVisible, setIsFullHistoryVisible] = useState(false);
   const [mapReloadToken, setMapReloadToken] = useState(0);
   const token = useAuthStore((state) => state.token);
@@ -139,16 +139,16 @@ export default function ManagerGeofencingRoute() {
       socket.emit("get_live_workers", { projectId });
     };
 
-    const applyLiveWorkers = (payload: { workers?: Array<{ workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }> }) => {
+    const applyLiveWorkers = (payload: { workers?: { workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }[] }) => {
       setLiveWorkers(payload.workers ?? []);
     };
 
-    const handleActiveWorkers = (payload: { workers?: Array<{ workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }> }) => {
+    const handleActiveWorkers = (payload: { workers?: { workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }[] }) => {
       console.log("[ManagerGeofencing] active_workers:", payload);
       applyLiveWorkers(payload);
     };
 
-    const handleLiveWorkers = (payload: { workers?: Array<{ workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }> }) => {
+    const handleLiveWorkers = (payload: { workers?: { workerId: string; workerName: string; lat: number; lng: number; isInsideZone?: boolean }[] }) => {
       console.log("[ManagerGeofencing] live_workers:", payload);
       applyLiveWorkers(payload);
     };

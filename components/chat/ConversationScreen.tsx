@@ -1,4 +1,10 @@
-import { useChatMessagesQuery } from "@/hooks/chat/chat";
+import { useChatMessagesQuery ,
+  useBlockedChatUsersQuery,
+  useBlockChatUserMutation,
+  useChatContactsQuery,
+  useChatThreadsQuery,
+  useUnblockChatUserMutation,
+} from "@/hooks/chat/chat";
 import { uploadChatFile } from "@/api/chat/chat.api";
 import { useAuthStore } from "@/store/auth.store";
 import { router, useLocalSearchParams } from "expo-router";
@@ -20,7 +26,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView , useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import ChatAttachmentTray from "./ChatAttachmentTray";
 import ChatComposer from "./ChatComposer";
@@ -35,14 +41,8 @@ import {
   useChatUserOnlineStatus,
   useChatSocket,
 } from "@/lib/chat-socket";
-import {
-  useBlockedChatUsersQuery,
-  useBlockChatUserMutation,
-  useChatContactsQuery,
-  useChatThreadsQuery,
-  useUnblockChatUserMutation,
-} from "@/hooks/chat/chat";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+
 
 const placeholderAvatar = require("../../assets/images/placeholder-person.png");
 const MESSAGE_BATCH_SIZE = 20;
