@@ -5,6 +5,8 @@ node_modules/
 
 # Expo
 .expo/
+.expo-export-test/
+.expo-export-test-price-report/
 dist/
 web-build/
 expo-env.d.ts
