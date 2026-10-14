@@ -216,39 +216,54 @@ export default function WorkerHome() {
         return;
       }
 
-      console.log("[WorkerHome] requestBackgroundPermissionsAsync...");
-      const backgroundPermission = await Location.requestBackgroundPermissionsAsync();
-      console.log("[WorkerHome] background location permission result", backgroundPermission.status);
-      if (backgroundPermission.status !== "granted") {
-        Alert.alert(
-          "Background location disabled",
-          "Allow background location to keep live tracking active when the app is closed.",
-        );
+      let backgroundPermission: any = null;
+      try {
+        console.log("[WorkerHome] requestBackgroundPermissionsAsync...");
+        backgroundPermission = await Location.requestBackgroundPermissionsAsync();
+        console.log("[WorkerHome] background location permission result", backgroundPermission?.status);
+        if (backgroundPermission?.status !== "granted") {
+          Alert.alert(
+            "Background location disabled",
+            "Allow background location to keep live tracking active when the app is closed.",
+          );
+        }
+      } catch (bgError) {
+        console.warn("[WorkerHome] background location permission not available in current build:", bgError);
       }
 
       console.log("[WorkerHome] getCurrentPositionAsync...");
-      const current = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      let current: any = null;
+      try {
+        current = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+      } catch (locErr) {
+        console.warn("[WorkerHome] getCurrentPositionAsync failed, falling back to last known:", locErr);
+        current = await Location.getLastKnownPositionAsync({});
+      }
+
+      const lat = current?.coords?.latitude ?? 0;
+      const lng = current?.coords?.longitude ?? 0;
+
       console.log("[WorkerHome] GPS resolved for check-in", {
         elapsedMs: Date.now() - startedAt,
-        lat: current.coords.latitude,
-        lng: current.coords.longitude,
+        lat,
+        lng,
       });
 
       console.log("[WorkerHome] attendance.checkIn mutateAsync start");
       await checkInMutation.mutateAsync({
         projectId: selectedCheckInProjectId,
-        lat: current.coords.latitude,
-        lng: current.coords.longitude,
+        lat,
+        lng,
       });
       console.log("[WorkerHome] attendance.checkIn mutateAsync success");
       attendanceProjectIdRef.current = selectedCheckInProjectId;
       liveTrackingRef.current = true;
 
       const geofencePayload = {
-        lat: current.coords.latitude,
-        lng: current.coords.longitude,
+        lat,
+        lng,
         projectId: selectedCheckInProjectId,
       };
 
@@ -259,10 +274,10 @@ export default function WorkerHome() {
 
       console.log("[WorkerHome] sendLocationUpdate after check-in");
       await sendLocationUpdate({
-        latitude: current.coords.latitude,
-        longitude: current.coords.longitude,
+        latitude: lat,
+        longitude: lng,
       });
-      if (backgroundPermission.status === "granted") {
+      if (backgroundPermission?.status === "granted") {
         try {
           await startWorkerLocationTracking();
           console.log("[WorkerHome] background location tracking started");
@@ -272,6 +287,12 @@ export default function WorkerHome() {
       }
       setIsCheckInSheetVisible(false);
       startLiveUpdates();
+    } catch (error: any) {
+      console.error("[WorkerHome] handleCheckIn error", error);
+      Alert.alert(
+        "Check-in Failed",
+        error?.message || "An error occurred during check-in. Please try again."
+      );
     } finally {
       setAttendanceAction(null);
     }
@@ -333,6 +354,12 @@ export default function WorkerHome() {
       console.log("[WorkerHome] emitGeofenceCheckOut", geofencePayload);
       emitGeofenceCheckOut(geofencePayload);
       await stopWorkerLocationTracking();
+    } catch (error: any) {
+      console.error("[WorkerHome] handleCheckOut error", error);
+      Alert.alert(
+        "Check-out Failed",
+        error?.message || "An error occurred during check-out. Please try again."
+      );
     } finally {
       setAttendanceAction(null);
     }

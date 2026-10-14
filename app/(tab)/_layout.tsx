@@ -37,7 +37,7 @@ export default function RootLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        freezeOnBlur: true,
+        freezeOnBlur: false,
         tabBarActiveTintColor: "#1f3d5c",
         tabBarInactiveTintColor: "#6b7280",
         tabBarHideOnKeyboard: true,

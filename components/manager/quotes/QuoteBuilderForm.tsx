@@ -1,6 +1,7 @@
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Platform, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import QuoteChoiceCard from "./QuoteChoiceCard";
 import QuoteField from "./QuoteField";
 import QuoteSectionCard from "./QuoteSectionCard";
@@ -19,15 +20,15 @@ type QuoteBuilderFormProps = {
   setProjectName: (value: string) => void;
   clientName: string;
   setClientName: (value: string) => void;
-  defaultClientName: string;
+  defaultClientName?: string;
   projectAddress: string;
   setProjectAddress: (value: string) => void;
   phoneNumber: string;
   setPhoneNumber: (value: string) => void;
-  defaultPhone: string;
+  defaultPhone?: string;
   email: string;
   setEmail: (value: string) => void;
-  defaultEmail: string;
+  defaultEmail?: string;
   estimatedTime: string;
   setEstimatedTime: (value: string) => void;
   startDate: string;
@@ -56,15 +57,12 @@ export default function QuoteBuilderForm({
   setProjectName,
   clientName,
   setClientName,
-  defaultClientName,
   projectAddress,
   setProjectAddress,
   phoneNumber,
   setPhoneNumber,
-  defaultPhone,
   email,
   setEmail,
-  defaultEmail,
   estimatedTime,
   setEstimatedTime,
   startDate,
@@ -83,6 +81,56 @@ export default function QuoteBuilderForm({
   setUnitType,
   onNext,
 }: QuoteBuilderFormProps) {
+  const [fallbackPickerField, setFallbackPickerField] = React.useState<"start" | "end" | null>(null);
+
+  const handlePickStartDate = () => {
+    try {
+      const initialDate = startDate && !isNaN(Date.parse(startDate)) ? new Date(startDate) : new Date();
+      if (Platform.OS === "android" && DateTimePickerAndroid?.open) {
+        DateTimePickerAndroid.open({
+          value: initialDate,
+          mode: "date",
+          onChange: (event, selectedDate) => {
+            if (event.type === "set" && selectedDate) {
+              const yyyy = selectedDate.getFullYear();
+              const mm = String(selectedDate.getMonth() + 1).padStart(2, "0");
+              const dd = String(selectedDate.getDate()).padStart(2, "0");
+              setStartDate(`${yyyy}-${mm}-${dd}`);
+            }
+          },
+        });
+      } else {
+        setFallbackPickerField("start");
+      }
+    } catch {
+      setFallbackPickerField("start");
+    }
+  };
+
+  const handlePickEndDate = () => {
+    try {
+      const initialDate = endDate && !isNaN(Date.parse(endDate)) ? new Date(endDate) : new Date();
+      if (Platform.OS === "android" && DateTimePickerAndroid?.open) {
+        DateTimePickerAndroid.open({
+          value: initialDate,
+          mode: "date",
+          onChange: (event, selectedDate) => {
+            if (event.type === "set" && selectedDate) {
+              const yyyy = selectedDate.getFullYear();
+              const mm = String(selectedDate.getMonth() + 1).padStart(2, "0");
+              const dd = String(selectedDate.getDate()).padStart(2, "0");
+              setEndDate(`${yyyy}-${mm}-${dd}`);
+            }
+          },
+        });
+      } else {
+        setFallbackPickerField("end");
+      }
+    } catch {
+      setFallbackPickerField("end");
+    }
+  };
+
   return (
     <>
       <QuoteSectionCard title="Client Information" icon="business-outline">
@@ -116,7 +164,7 @@ export default function QuoteBuilderForm({
         />
         <QuoteField
           label="Client Name *"
-          placeholder="Roky Islam"
+          placeholder="Enter client name"
           value={clientName}
           onChangeText={setClientName}
         />
@@ -129,23 +177,24 @@ export default function QuoteBuilderForm({
         />
         <QuoteField
           label="Phone Number"
-          placeholder="+880123456789"
-          value={phoneNumber || defaultPhone}
+          placeholder="Enter phone number"
+          value={phoneNumber}
           onChangeText={setPhoneNumber}
           keyboardType="phone-pad"
         />
         <QuoteField
           label="Email"
-          placeholder="Enter your mail"
-          value={email }
+          placeholder="Enter email address"
+          value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
         />
         <QuoteField
-          label="Time Hours"
-          placeholder="Enter hours"
+          label="Estimated Hours"
+          placeholder="Enter estimated hours (e.g. 40)"
           value={estimatedTime}
           onChangeText={setEstimatedTime}
+          keyboardType="numeric"
         />
       </QuoteSectionCard>
 
@@ -188,16 +237,16 @@ export default function QuoteBuilderForm({
         <View className="flex-row gap-3">
           <View className="w-[48%]">
             <QuoteChoiceCard
-              label="House"
-              selected={unitType === "House"}
-              onPress={() => setUnitType("House")}
+              label="Apartment"
+              selected={unitType === "Apartment"}
+              onPress={() => setUnitType("Apartment")}
             />
           </View>
           <View className="w-[48%]">
             <QuoteChoiceCard
-              label="Apartment"
-              selected={unitType === "Apartment"}
-              onPress={() => setUnitType("Apartment")}
+              label="House"
+              selected={unitType === "House"}
+              onPress={() => setUnitType("House")}
             />
           </View>
         </View>
@@ -209,6 +258,9 @@ export default function QuoteBuilderForm({
               placeholder="YYYY-MM-DD"
               value={startDate}
               onChangeText={setStartDate}
+              rightIcon="calendar-outline"
+              onPress={handlePickStartDate}
+              onPressRightIcon={handlePickStartDate}
             />
           </View>
           <View className="flex-1">
@@ -217,6 +269,9 @@ export default function QuoteBuilderForm({
               placeholder="YYYY-MM-DD"
               value={endDate}
               onChangeText={setEndDate}
+              rightIcon="calendar-outline"
+              onPress={handlePickEndDate}
+              onPressRightIcon={handlePickEndDate}
             />
           </View>
         </View>
@@ -225,7 +280,7 @@ export default function QuoteBuilderForm({
           <View className="flex-1">
             <QuoteField
               label="Floors Count"
-              placeholder="e.g. 3"
+              placeholder="Enter floors count (e.g. 3)"
               value={floorsCount}
               onChangeText={setFloorsCount}
               keyboardType="number-pad"
@@ -233,8 +288,8 @@ export default function QuoteBuilderForm({
           </View>
           <View className="flex-1">
             <QuoteField
-              label="Units / Floor"
-              placeholder="e.g. 4"
+              label="Units Per Floor"
+              placeholder="Enter units per floor (e.g. 4)"
               value={unitsPerFloor}
               onChangeText={setUnitsPerFloor}
               keyboardType="number-pad"
@@ -242,6 +297,32 @@ export default function QuoteBuilderForm({
           </View>
         </View>
       </QuoteSectionCard>
+
+      {fallbackPickerField && (
+        <DateTimePicker
+          value={
+            fallbackPickerField === "start"
+              ? startDate && !isNaN(Date.parse(startDate)) ? new Date(startDate) : new Date()
+              : endDate && !isNaN(Date.parse(endDate)) ? new Date(endDate) : new Date()
+          }
+          mode="date"
+          display="default"
+          onChange={(event, selectedDate) => {
+            const currentField = fallbackPickerField;
+            setFallbackPickerField(null);
+            if (event.type === "set" && selectedDate) {
+              const yyyy = selectedDate.getFullYear();
+              const mm = String(selectedDate.getMonth() + 1).padStart(2, "0");
+              const dd = String(selectedDate.getDate()).padStart(2, "0");
+              if (currentField === "start") {
+                setStartDate(`${yyyy}-${mm}-${dd}`);
+              } else {
+                setEndDate(`${yyyy}-${mm}-${dd}`);
+              }
+            }
+          }}
+        />
+      )}
 
       <TouchableOpacity
         activeOpacity={0.88}

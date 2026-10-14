@@ -305,3 +305,122 @@ export async function sendManagerQuoteMail(
   return data;
 }
 
+export type CreateQuoteEstimateTaskPayload = {
+  title: string;
+  description?: string;
+  floorNumber?: number;
+  unitName?: string;
+  quantity?: number;
+  unit?: string;
+  estimatedHours?: number;
+  unitPrice?: number;
+  sortOrder?: number;
+};
+
+export type CreateQuoteEstimatePayload = {
+  companyId: string;
+  projectName: string;
+  clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  projectAddress?: string;
+  projectType?: string;
+  propertyType?: string;
+  unitType?: string;
+  startDate?: string;
+  endDate?: string;
+  floorsCount?: number;
+  unitsPerFloor?: number;
+  discountAmount?: number;
+  taxAmount?: number;
+  tasks?: CreateQuoteEstimateTaskPayload[];
+};
+
+export type QuoteEstimateResponse = {
+  id: string;
+  quoteNumber: string;
+  companyId: string;
+  projectName: string;
+  clientName: string;
+  clientEmail?: string | null;
+  clientPhone?: string | null;
+  projectAddress?: string | null;
+  projectType?: string | null;
+  propertyType?: string | null;
+  unitType?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  floorsCount?: number | null;
+  unitsPerFloor?: number | null;
+  totalUnits?: number | null;
+  status: "draft" | "sent" | "accepted" | "rejected" | "converted" | "cancelled" | string;
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  company?: { id: string; name: string };
+  createdAt: string;
+  updatedAt?: string;
+  tasks?: Array<{
+    id: string;
+    title: string;
+    quantity: number;
+    unit: string;
+    unitPrice: number;
+    totalPrice: number;
+  }>;
+};
+
+export async function createQuoteEstimate(payload: CreateQuoteEstimatePayload) {
+  const { data } = await api.post<{
+    success?: boolean;
+    message?: string;
+    data?: QuoteEstimateResponse;
+    quote?: QuoteEstimateResponse;
+  }>("/admin/quote-estimates", payload);
+
+  const quote = data?.data || data?.quote || (data as any);
+  return quote as QuoteEstimateResponse;
+}
+
+export async function sendQuoteEstimate(id: string) {
+  const { data } = await api.post<{
+    success?: boolean;
+    message?: string;
+    data?: QuoteEstimateResponse;
+    quote?: QuoteEstimateResponse;
+  }>(`/admin/quote-estimates/${id}/send`);
+
+  return data;
+}
+
+export async function acceptAndCreateProject(
+  id: string,
+  payload?: { acceptedByName?: string; notes?: string },
+) {
+  const { data } = await api.post<{
+    success?: boolean;
+    message?: string;
+    data?: {
+      quote: QuoteEstimateResponse;
+      project: { id: string; name: string };
+    };
+  }>(`/admin/quote-estimates/${id}/accept-and-create-project`, payload || {});
+
+  return data;
+}
+
+export async function getQuoteEstimates(params?: {
+  companyId?: string;
+  status?: string;
+  search?: string;
+}) {
+  const { data } = await api.get<any>("/admin/quote-estimates", { params });
+
+  const raw = data?.data ?? data;
+  if (Array.isArray(raw)) return raw as QuoteEstimateResponse[];
+  if (raw && Array.isArray(raw.quotes)) return raw.quotes as QuoteEstimateResponse[];
+  return [] as QuoteEstimateResponse[];
+}
+
+

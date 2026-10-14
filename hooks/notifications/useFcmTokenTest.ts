@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import { useEffect, useRef } from "react";
+import { getApps } from "@react-native-firebase/app";
 import { getMessaging, getToken, onMessage, onTokenRefresh, registerDeviceForRemoteMessages, requestPermission } from "@react-native-firebase/messaging";
 import * as Notifications from "expo-notifications";
 import { saveDeviceToken } from "@/api/notifications/notifications.api";
@@ -58,6 +59,9 @@ export function useFcmTokenTest() {
 
     async function initFCM() {
       try {
+        if (!getApps().length) {
+          return;
+        }
         const messaging = getMessaging();
         await registerDeviceForRemoteMessages(messaging);
         await requestNotificationPermission();
