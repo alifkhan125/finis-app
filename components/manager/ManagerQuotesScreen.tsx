@@ -1,6 +1,15 @@
 import React, { useMemo, useState , useEffect } from "react";
 
-import { RefreshControl, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -20,6 +29,7 @@ import {
 import { setCurrentPreviewDocument } from "@/components/company/taskdetails/documentPreviewStore";
 import { router } from "expo-router";
 import { useAuthStore } from "@/store/auth.store";
+import { useCompaniesQuery } from "@/hooks/company/company";
 import { toast } from "sonner-native";
 import AddCustomQuoteItemModal from "./quotes/AddCustomQuoteItemModal";
 import ApplyDiscountModal from "./quotes/ApplyDiscountModal";
@@ -60,11 +70,18 @@ export default function ManagerQuotesScreen() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [companyId, setCompanyId] = useState("");
+  const [companySheetVisible, setCompanySheetVisible] = useState(false);
+  const [projectName, setProjectName] = useState("");
   const [clientName, setClientName] = useState("");
   const [projectAddress, setProjectAddress] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [email, setEmail] = useState("");
   const [estimatedTime, setEstimatedTime] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [floorsCount, setFloorsCount] = useState("");
+  const [unitsPerFloor, setUnitsPerFloor] = useState("");
   const [projectType, setProjectType] =
     useState<QuoteProjectType>("New Build");
   const [propertyType, setPropertyType] =
@@ -133,6 +150,10 @@ export default function ManagerQuotesScreen() {
   const defaultClientName = currentUser?.fullName || currentUser?.name || "";
   const defaultEmail = currentUser?.email || "";
   const defaultPhone = currentUser?.phone || "";
+  const companiesQuery = useCompaniesQuery(1, 100);
+  const companies = companiesQuery.data?.data ?? [];
+  const selectedCompany = companies.find((company) => company.id === companyId);
+  const companyName = selectedCompany?.name ?? "";
   const backendQuotes = quoteFilterQuery.data?.quotes ?? [];
   const quoteSelectors = quoteSelectorsQuery.data;
   const quoteCatalogGroups = quoteCatalogQuery.data ?? [];
@@ -192,12 +213,19 @@ export default function ManagerQuotesScreen() {
   const projectMetaLabel = "";
 
   const quoteParams = {
+    companyName,
+    projectName,
     clientName,
     email,
+    phoneNumber,
     projectAddress,
     projectType,
     propertyType,
     unitType,
+    startDate,
+    endDate,
+    floorsCount,
+    unitsPerFloor,
     estimatedTime: estimatedTime || "",
     projectMetaLabel,
     validUntilLabel,
@@ -235,9 +263,11 @@ export default function ManagerQuotesScreen() {
       await sendManagerQuoteMail({
         clientEmail: resolvedEmail,
         clientName: clientName || defaultClientName || undefined,
-        subject: projectAddress || `${projectType} Project`,
+        subject: projectName || projectAddress || `${projectType} Project`,
         body: `Welcome ${clientName || defaultClientName || ""},
 
+Company: ${companyName || "N/A"}
+Project Name: ${projectName || "N/A"}
 Client Name: ${clientName || defaultClientName || ""}
 Client Email: ${resolvedEmail}
 Phone Number: ${phoneNumber || defaultPhone || "N/A"}
@@ -245,6 +275,10 @@ Project Address: ${projectAddress || "N/A"}
 Project Type: ${projectType}
 Property Type: ${propertyType}
 Unit Type: ${unitType}
+Start Date: ${startDate || "N/A"}
+End Date: ${endDate || "N/A"}
+Floors Count: ${floorsCount || "N/A"}
+Units Per Floor: ${unitsPerFloor || "N/A"}
 Estimated Time: ${estimatedTime || "N/A"}
 
 Please find the attached quote PDF.`,
@@ -498,6 +532,12 @@ Please find the attached quote PDF.`,
 
           {step === 1 ? (
             <QuoteBuilderForm
+              companyName={companyName}
+              companyId={companyId}
+              isCompaniesLoading={companiesQuery.isLoading}
+              onOpenCompanyPicker={() => setCompanySheetVisible(true)}
+              projectName={projectName}
+              setProjectName={setProjectName}
               clientName={clientName}
               setClientName={setClientName}
               projectAddress={projectAddress}
@@ -511,6 +551,14 @@ Please find the attached quote PDF.`,
               defaultEmail={defaultEmail}
               estimatedTime={estimatedTime}
               setEstimatedTime={setEstimatedTime}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              floorsCount={floorsCount}
+              setFloorsCount={setFloorsCount}
+              unitsPerFloor={unitsPerFloor}
+              setUnitsPerFloor={setUnitsPerFloor}
               projectType={projectType}
               setProjectType={(value) =>
                 syncCombination(value, propertyType, unitType)
@@ -523,7 +571,25 @@ Please find the attached quote PDF.`,
               setUnitType={(value) =>
                 syncCombination(projectType, propertyType, value)
               }
-              onNext={() => setStep(2)}
+              onNext={() => {
+                if (!companyId) {
+                  toast.error("Company is required.");
+                  return;
+                }
+                if (!projectName.trim()) {
+                  toast.error("Project name is required.");
+                  return;
+                }
+                if (!clientName.trim() && !defaultClientName) {
+                  toast.error("Client name is required.");
+                  return;
+                }
+                if (!projectAddress.trim()) {
+                  toast.error("Project address is required.");
+                  return;
+                }
+                setStep(2);
+              }}
             />
           ) : step === 2 ? (
             <QuoteWorkItemsStep
@@ -566,12 +632,19 @@ Please find the attached quote PDF.`,
           ) : (
             <QuoteFinalReviewStep
               clientName={clientName || defaultClientName}
+              companyName={companyName}
+              projectName={projectName}
               email={email || defaultEmail}
+              phoneNumber={phoneNumber || defaultPhone}
               projectAddress={projectAddress}
               projectType={projectType}
               propertyType={propertyType}
               unitType={unitType}
               estimatedTime={estimatedTime }
+              startDate={startDate}
+              endDate={endDate}
+              floorsCount={floorsCount}
+              unitsPerFloor={unitsPerFloor}
               workGroups={workGroups}
               subtotal={subtotal}
               itemsSelected={itemsSelected}
@@ -593,6 +666,92 @@ Please find the attached quote PDF.`,
           )}
         </View>
       </ScrollView>
+
+      <Modal
+        transparent
+        visible={companySheetVisible}
+        animationType="slide"
+        onRequestClose={() => setCompanySheetVisible(false)}
+      >
+        <Pressable
+          className="flex-1 justify-end bg-black/35"
+          onPress={() => setCompanySheetVisible(false)}
+        >
+          <Pressable className="max-h-[75%] rounded-t-[26px] bg-white px-5 pb-8 pt-4">
+            <View className="mb-4 h-1 w-12 self-center rounded-full bg-[#CBD5E1]" />
+            <View className="mb-4 flex-row items-center justify-between">
+              <View>
+                <Text className="text-[18px] font-semibold text-[#1F2937]">
+                  Select Company
+                </Text>
+                <Text className="mt-1 text-[13px] text-[#64748B]">
+                  Choose from saved companies.
+                </Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setCompanySheetVisible(false)}
+                className="h-10 w-10 items-center justify-center rounded-full bg-[#F1F5F9]"
+              >
+                <Text className="text-[18px] font-semibold text-[#334155]">x</Text>
+              </TouchableOpacity>
+            </View>
+
+            {companiesQuery.isLoading ? (
+              <View className="items-center justify-center py-10">
+                <ActivityIndicator color="#1F5577" />
+                <Text className="mt-3 text-[14px] text-[#64748B]">
+                  Loading companies...
+                </Text>
+              </View>
+            ) : companies.length === 0 ? (
+              <View className="rounded-[16px] border border-dashed border-[#CBD5E1] px-4 py-8">
+                <Text className="text-center text-[14px] font-medium text-[#334155]">
+                  No companies found
+                </Text>
+                <Text className="mt-2 text-center text-[13px] text-[#64748B]">
+                  Create a company first, then select it here.
+                </Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {companies.map((company) => {
+                  const isSelected = company.id === companyId;
+
+                  return (
+                    <TouchableOpacity
+                      key={company.id}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        setCompanyId(company.id);
+                        setCompanySheetVisible(false);
+                      }}
+                      className={`mb-3 rounded-[16px] border px-4 py-4 ${
+                        isSelected
+                          ? "border-[#1F5577] bg-[#EAF4FA]"
+                          : "border-[#E2E8F0] bg-white"
+                      }`}
+                    >
+                      <Text
+                        className={`text-[15px] font-semibold ${
+                          isSelected ? "text-[#1F5577]" : "text-[#1F2937]"
+                        }`}
+                      >
+                        {company.name}
+                      </Text>
+                      {!!company.address && (
+                        <Text className="mt-1 text-[13px] text-[#64748B]" numberOfLines={1}>
+                          {company.address}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <ApplyDiscountModal
         visible={discountModalVisible}

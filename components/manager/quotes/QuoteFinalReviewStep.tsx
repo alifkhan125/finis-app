@@ -11,13 +11,20 @@ import QuoteReviewCard from "./QuoteReviewCard";
 import type { QuoteSelectedWorkGroup } from "./QuoteWorkGroupCard";
 
 type QuoteFinalReviewStepProps = {
+  companyName?: string;
+  projectName?: string;
   clientName: string;
   email: string;
+  phoneNumber?: string;
   projectAddress: string;
   projectType: QuoteProjectType;
   propertyType: QuotePropertyType;
   unitType: QuoteUnitType;
   estimatedTime: string;
+  startDate?: string;
+  endDate?: string;
+  floorsCount?: string;
+  unitsPerFloor?: string;
   workGroups: QuoteSelectedWorkGroup[];
   subtotal: number;
   itemsSelected: number;
@@ -67,13 +74,20 @@ function DetailRow({
 }
 
 export default function QuoteFinalReviewStep({
+  companyName,
+  projectName,
   clientName,
   email,
+  phoneNumber,
   projectAddress,
   projectType,
   propertyType,
   unitType,
   estimatedTime,
+  startDate,
+  endDate,
+  floorsCount,
+  unitsPerFloor,
   workGroups,
   subtotal,
   itemsSelected,
@@ -101,6 +115,18 @@ export default function QuoteFinalReviewStep({
       <QuoteReviewCard title="Quote Summary" onEdit={onEditSummary}>
      
         <View className="mt-1">
+          {companyName ? (
+            <DetailRow
+              icon="business-outline"
+              label="Company"
+              value={companyName}
+            />
+          ) : null}
+          <DetailRow
+            icon="folder-outline"
+            label="Project"
+            value={projectName || "N/A"}
+          />
           <DetailRow
             icon="business-outline"
             label="Client"
@@ -127,6 +153,11 @@ export default function QuoteFinalReviewStep({
             icon="mail-outline"
             label="Client Email"
             value={email} 
+          />
+          <DetailRow
+            icon="call-outline"
+            label="Phone Number"
+            value={phoneNumber || "N/A"}
           />
         </View>
       </QuoteReviewCard>
@@ -205,8 +236,14 @@ export default function QuoteFinalReviewStep({
         />
         <DetailRow
           icon="calendar-outline"
-          label="Estimated Timeline"
-          value={estimatedTime }
+          label="Schedule"
+          value={`${startDate || "N/A"} - ${endDate || "N/A"}`}
+          subvalue={estimatedTime ? `Estimated hours: ${estimatedTime}` : undefined}
+        />
+        <DetailRow
+          icon="business-outline"
+          label="Structure"
+          value={`${floorsCount || "0"} floors • ${unitsPerFloor || "0"} units/floor`}
         />
         <DetailRow
           icon="document-text-outline"

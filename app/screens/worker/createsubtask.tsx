@@ -162,7 +162,7 @@ export default function WorkerCreateSubtaskRoute() {
         estimatedHours: estimatedHours.trim() ? Number(estimatedHours) : undefined,
       });
 
-      toast.success("Subtask created successfully");
+      toast.success("Subtask request sent for approval");
       router.replace("/worker/tasks");
     } catch (error) {
       // mutation handles error upstream if needed

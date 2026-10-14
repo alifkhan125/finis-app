@@ -19,12 +19,19 @@ function escapeHtml(value: string) {
 }
 
 export type GenerateQuotePdfParams = {
+  companyName?: string;
+  projectName?: string;
   clientName: string;
   email?: string;
+  phoneNumber?: string;
   projectAddress: string;
   projectType: QuoteProjectType;
   propertyType: QuotePropertyType;
   unitType: QuoteUnitType;
+  startDate?: string;
+  endDate?: string;
+  floorsCount?: string;
+  unitsPerFloor?: string;
   estimatedTime: string;
   projectMetaLabel: string;
   validUntilLabel: string;
@@ -60,10 +67,15 @@ function buildQuoteHtml(params: GenerateQuotePdfParams) {
     <body>
       <h1>Construction Quote</h1>
       <div class="card">
+        ${params.companyName ? `<div><strong>Company:</strong> ${escapeHtml(params.companyName)}</div>` : ""}
+        ${params.projectName ? `<div style="margin-top:8px"><strong>Project:</strong> ${escapeHtml(params.projectName)}</div>` : ""}
         <div><strong>Client:</strong> ${escapeHtml(params.clientName || "")}</div>
         <div style="margin-top:8px"><strong>Email:</strong> ${escapeHtml(params.email || "N/A")}</div>
+        <div style="margin-top:8px"><strong>Phone:</strong> ${escapeHtml(params.phoneNumber || "N/A")}</div>
         <div style="margin-top:8px"><strong>Project Address:</strong> ${escapeHtml(params.projectAddress || "")}</div>
         <div style="margin-top:8px"><strong>Project Details:</strong> ${escapeHtml(`${params.projectType} • ${params.propertyType} • ${params.unitType}`)}</div>
+        <div style="margin-top:8px"><strong>Schedule:</strong> ${escapeHtml(`${params.startDate || "N/A"} - ${params.endDate || "N/A"}`)}</div>
+        <div style="margin-top:8px"><strong>Structure:</strong> ${escapeHtml(`${params.floorsCount || "0"} floors • ${params.unitsPerFloor || "0"} units/floor`)}</div>
         ${params.projectMetaLabel ? `<div style="margin-top:8px"><strong>Project Meta:</strong> ${escapeHtml(params.projectMetaLabel)}</div>` : ""}
         <div style="margin-top:8px"><strong>Estimated Timeline:</strong> ${escapeHtml(params.estimatedTime || "")}</div>
         <div style="margin-top:8px"><strong>Quote Valid Until:</strong> ${escapeHtml(params.validUntilLabel)}</div>

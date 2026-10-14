@@ -31,6 +31,7 @@ export default function OfflineNotice() {
   } = useNetworkStore();
 
   const [stillOfflineNotice, setStillOfflineNotice] = useState(false);
+  const [showOnlineToast, setShowOnlineToast] = useState(false);
 
   // Animations
   const bannerAnim = useRef(new Animated.Value(0)).current;
@@ -63,6 +64,7 @@ export default function OfflineNotice() {
   // Animate "Back Online" green toast when connection recovers
   useEffect(() => {
     if (wasOffline && isConnected) {
+      setShowOnlineToast(true);
       try {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch { }
@@ -77,12 +79,13 @@ export default function OfflineNotice() {
       const timer = setTimeout(() => {
         Animated.timing(onlineToastAnim, {
           toValue: 0,
-          duration: 300,
+          duration: 220,
           useNativeDriver: true,
         }).start(() => {
+          setShowOnlineToast(false);
           clearWasOffline();
         });
-      }, 3500);
+      }, 2500);
 
       return () => clearTimeout(timer);
     }
@@ -130,7 +133,7 @@ export default function OfflineNotice() {
     <>
       {/* ─── 1. TOP FLOATING RECOVERED PILL ("Back Online") ─────────────── */}
       <Animated.View
-        pointerEvents={wasOffline && isConnected ? "auto" : "none"}
+        pointerEvents={showOnlineToast ? "auto" : "none"}
         style={{
           position: "absolute",
           top: insets.top + 8,
