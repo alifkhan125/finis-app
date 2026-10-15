@@ -92,6 +92,10 @@ export default function ManagerQuotesScreen() {
   const [endDate, setEndDate] = useState("");
   const [floorsCount, setFloorsCount] = useState("");
   const [unitsPerFloor, setUnitsPerFloor] = useState("");
+  const [floorStart, setFloorStart] = useState("1");
+  const [floorEnd, setFloorEnd] = useState("");
+  const [unitStart, setUnitStart] = useState("101");
+  const [unitEnd, setUnitEnd] = useState("");
   const [projectType, setProjectType] =
     useState<QuoteProjectType>("New Build");
   const [propertyType, setPropertyType] =
@@ -359,8 +363,22 @@ export default function ManagerQuotesScreen() {
         unitType: unitType.toLowerCase().replace(/\s+/g, "_"),
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        floorsCount: floorsCount ? Number(floorsCount) : undefined,
-        unitsPerFloor: unitsPerFloor ? Number(unitsPerFloor) : undefined,
+        floorsCount:
+          floorStart && floorEnd
+            ? Number(floorEnd) - Number(floorStart) + 1
+            : floorsCount
+              ? Number(floorsCount)
+              : undefined,
+        unitsPerFloor:
+          unitStart && unitEnd
+            ? Number(unitEnd) - Number(unitStart) + 1
+            : unitsPerFloor
+              ? Number(unitsPerFloor)
+              : undefined,
+        floorStart: floorStart ? Number(floorStart) : undefined,
+        floorEnd: floorEnd ? Number(floorEnd) : undefined,
+        unitStart: unitStart ? Number(unitStart) : undefined,
+        unitEnd: unitEnd ? Number(unitEnd) : undefined,
         discountAmount: discountAmount || 0,
         tasks: selectedTasks,
       });
@@ -380,7 +398,7 @@ Please find attached your official quotation (${createdQuote.quoteNumber || "Est
 Project: ${projectName.trim()}
 Address: ${projectAddress.trim()}
 Type: ${projectType} • ${propertyType} • ${unitType}
-Structure: ${floorsCount || 0} floors, ${unitsPerFloor || 0} units/floor
+Structure: Floors ${floorStart || "1"}-${floorEnd || floorStart || "1"}, Units ${unitStart || "1"}-${unitEnd || unitStart || "1"}
 Estimated Total: $${finalTotal.toFixed(2)}
 
 Best regards,
@@ -764,6 +782,14 @@ ${companyName || "Finis"}`,
                 setFloorsCount={setFloorsCount}
                 unitsPerFloor={unitsPerFloor}
                 setUnitsPerFloor={setUnitsPerFloor}
+                floorStart={floorStart}
+                setFloorStart={setFloorStart}
+                floorEnd={floorEnd}
+                setFloorEnd={setFloorEnd}
+                unitStart={unitStart}
+                setUnitStart={setUnitStart}
+                unitEnd={unitEnd}
+                setUnitEnd={setUnitEnd}
                 projectType={projectType}
                 setProjectType={(value) =>
                   syncCombination(value, propertyType, unitType)
@@ -856,6 +882,10 @@ ${companyName || "Finis"}`,
                 endDate={endDate}
                 floorsCount={floorsCount}
                 unitsPerFloor={unitsPerFloor}
+                floorStart={floorStart}
+                floorEnd={floorEnd}
+                unitStart={unitStart}
+                unitEnd={unitEnd}
                 workGroups={workGroups}
                 subtotal={subtotal}
                 itemsSelected={itemsSelected}

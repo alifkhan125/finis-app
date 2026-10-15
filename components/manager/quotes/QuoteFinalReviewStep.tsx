@@ -25,6 +25,10 @@ type QuoteFinalReviewStepProps = {
   endDate?: string;
   floorsCount?: string;
   unitsPerFloor?: string;
+  floorStart?: string;
+  floorEnd?: string;
+  unitStart?: string;
+  unitEnd?: string;
   workGroups: QuoteSelectedWorkGroup[];
   subtotal: number;
   itemsSelected: number;
@@ -88,6 +92,10 @@ export default function QuoteFinalReviewStep({
   endDate,
   floorsCount,
   unitsPerFloor,
+  floorStart,
+  floorEnd,
+  unitStart,
+  unitEnd,
   workGroups,
   subtotal,
   itemsSelected,
@@ -243,7 +251,11 @@ export default function QuoteFinalReviewStep({
         <DetailRow
           icon="business-outline"
           label="Structure"
-          value={`${floorsCount || "0"} floors • ${unitsPerFloor || "0"} units/floor`}
+          value={
+            floorEnd && unitEnd
+              ? `Floors ${floorStart || "1"}-${floorEnd} • Units ${unitStart || "1"}-${unitEnd}`
+              : `${floorsCount || "0"} floors • ${unitsPerFloor || "0"} units/floor`
+          }
         />
         <DetailRow
           icon="document-text-outline"

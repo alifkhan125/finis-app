@@ -39,6 +39,14 @@ type QuoteBuilderFormProps = {
   setFloorsCount: (value: string) => void;
   unitsPerFloor: string;
   setUnitsPerFloor: (value: string) => void;
+  floorStart: string;
+  setFloorStart: (value: string) => void;
+  floorEnd: string;
+  setFloorEnd: (value: string) => void;
+  unitStart: string;
+  setUnitStart: (value: string) => void;
+  unitEnd: string;
+  setUnitEnd: (value: string) => void;
   projectType: QuoteProjectType;
   setProjectType: (value: QuoteProjectType) => void;
   propertyType: QuotePropertyType;
@@ -73,6 +81,14 @@ export default function QuoteBuilderForm({
   setFloorsCount,
   unitsPerFloor,
   setUnitsPerFloor,
+  floorStart,
+  setFloorStart,
+  floorEnd,
+  setFloorEnd,
+  unitStart,
+  setUnitStart,
+  unitEnd,
+  setUnitEnd,
   projectType,
   setProjectType,
   propertyType,
@@ -279,19 +295,39 @@ export default function QuoteBuilderForm({
         <View className="flex-row gap-3">
           <View className="flex-1">
             <QuoteField
-              label="Floors Count"
-              placeholder="Enter floors count (e.g. 3)"
-              value={floorsCount}
-              onChangeText={setFloorsCount}
+              label="Floor Start"
+              placeholder="e.g. 1"
+              value={floorStart}
+              onChangeText={setFloorStart}
               keyboardType="number-pad"
             />
           </View>
           <View className="flex-1">
             <QuoteField
-              label="Units Per Floor"
-              placeholder="Enter units per floor (e.g. 4)"
-              value={unitsPerFloor}
-              onChangeText={setUnitsPerFloor}
+              label="Floor End"
+              placeholder="e.g. 4"
+              value={floorEnd}
+              onChangeText={setFloorEnd}
+              keyboardType="number-pad"
+            />
+          </View>
+        </View>
+        <View className="mt-3 flex-row gap-3">
+          <View className="flex-1">
+            <QuoteField
+              label="Unit Start"
+              placeholder="e.g. 101"
+              value={unitStart}
+              onChangeText={setUnitStart}
+              keyboardType="number-pad"
+            />
+          </View>
+          <View className="flex-1">
+            <QuoteField
+              label="Unit End"
+              placeholder="e.g. 103"
+              value={unitEnd}
+              onChangeText={setUnitEnd}
               keyboardType="number-pad"
             />
           </View>

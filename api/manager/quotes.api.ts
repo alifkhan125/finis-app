@@ -310,6 +310,9 @@ export type CreateQuoteEstimateTaskPayload = {
   description?: string;
   floorNumber?: number;
   unitName?: string;
+  plannedFloorLabel?: string;
+  plannedUnitLabel?: string;
+  plannedLocationKey?: string;
   quantity?: number;
   unit?: string;
   estimatedHours?: number;
@@ -331,6 +334,10 @@ export type CreateQuoteEstimatePayload = {
   endDate?: string;
   floorsCount?: number;
   unitsPerFloor?: number;
+  floorStart?: number;
+  floorEnd?: number;
+  unitStart?: number;
+  unitEnd?: number;
   discountAmount?: number;
   taxAmount?: number;
   tasks?: CreateQuoteEstimateTaskPayload[];
@@ -352,6 +359,10 @@ export type QuoteEstimateResponse = {
   endDate?: string | null;
   floorsCount?: number | null;
   unitsPerFloor?: number | null;
+  floorStart?: number | null;
+  floorEnd?: number | null;
+  unitStart?: number | null;
+  unitEnd?: number | null;
   totalUnits?: number | null;
   status: "draft" | "sent" | "accepted" | "rejected" | "converted" | "cancelled" | string;
   subtotal: number;
@@ -368,6 +379,9 @@ export type QuoteEstimateResponse = {
     unit: string;
     unitPrice: number;
     totalPrice: number;
+    plannedFloorLabel?: string | null;
+    plannedUnitLabel?: string | null;
+    plannedLocationKey?: string | null;
   }>;
 };
 
