@@ -54,7 +54,11 @@ export default function QuoteField({
 
   return (
     <View className="mb-5">
-      <Text className="mb-2 text-[14px] font-medium text-[#2B2B2B]">
+      <Text
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        className="mb-2 text-[12px] font-medium text-[#2B2B2B]"
+      >
         {label}
       </Text>
       {isPressable ? (

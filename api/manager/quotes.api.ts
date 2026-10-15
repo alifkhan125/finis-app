@@ -313,6 +313,11 @@ export type CreateQuoteEstimateTaskPayload = {
   plannedFloorLabel?: string;
   plannedUnitLabel?: string;
   plannedLocationKey?: string;
+  locationMode?: "all" | "selected";
+  selectedFloorNumbers?: number[];
+  selectedUnitNames?: string[];
+  plannedLocationKeys?: string[];
+  scopeChecklist?: string[];
   quantity?: number;
   unit?: string;
   estimatedHours?: number;
@@ -382,6 +387,11 @@ export type QuoteEstimateResponse = {
     plannedFloorLabel?: string | null;
     plannedUnitLabel?: string | null;
     plannedLocationKey?: string | null;
+    locationMode?: "all" | "selected" | null;
+    selectedFloorNumbers?: number[] | null;
+    selectedUnitNames?: string[] | null;
+    plannedLocationKeys?: string[] | null;
+    scopeChecklist?: string[] | null;
   }>;
 };
 
