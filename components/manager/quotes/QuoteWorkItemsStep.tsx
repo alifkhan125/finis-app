@@ -65,7 +65,7 @@ export default function QuoteWorkItemsStep({
         >
           <Ionicons name="add" size={18} color="#1F5577" />
           <Text className="ml-2 text-[14px] font-medium text-[#1F5577]">
-            Add Custom Item
+            Add Service
           </Text>
         </TouchableOpacity>
       </QuoteSectionCard>

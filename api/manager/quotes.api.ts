@@ -162,48 +162,184 @@ export async function getQuoteSelectors() {
   return data.data;
 }
 
-export async function getQuoteWorkCategories(search?: string) {
-  const { data } = await api.get<{ success: boolean; message: string; data: QuoteSelectorOption[] }>(
+export type QuoteWorkCategoryItem = {
+  id: string;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    workItems: number;
+  };
+};
+
+export type QuoteMeasurementTypeItem = {
+  id: string;
+  value: string;
+  label: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function getQuoteWorkCategories(params?: { search?: string; includeInactive?: boolean } | string) {
+  const queryParams = typeof params === "string"
+    ? { search: params }
+    : {
+        search: params?.search || undefined,
+        includeInactive: params?.includeInactive ? "true" : undefined,
+      };
+
+  const { data } = await api.get<any>(
     "/manager/quotes/work-categories",
-    { params: search ? { search } : undefined },
+    { params: queryParams },
   );
 
-  if (!data.success) {
-    throw new Error(data.message || "Failed to load work categories");
-  }
-
-  return data.data;
+  const raw = data?.data ?? data;
+  return Array.isArray(raw) ? (raw as QuoteWorkCategoryItem[]) : [];
 }
 
-export async function getQuoteMeasurementTypes(search?: string) {
-  const { data } = await api.get<{ success: boolean; message: string; data: QuoteSelectorOption[] }>(
+export async function createQuoteWorkCategory(payload: {
+  name: string;
+  description?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+}) {
+  const { data } = await api.post<any>("/manager/quotes/work-categories", payload);
+  return (data?.data ?? data) as QuoteWorkCategoryItem;
+}
+
+export async function updateQuoteWorkCategory(
+  id: string,
+  payload: Partial<{
+    name: string;
+    description?: string | null;
+    sortOrder?: number;
+    isActive?: boolean;
+  }>,
+) {
+  const { data } = await api.put<any>(`/manager/quotes/work-categories/${id}`, payload);
+  return (data?.data ?? data) as QuoteWorkCategoryItem;
+}
+
+export async function disableQuoteWorkCategory(id: string) {
+  const { data } = await api.delete<any>(`/manager/quotes/work-categories/${id}`);
+  return data;
+}
+
+export async function getQuoteMeasurementTypes(params?: { search?: string; includeInactive?: boolean } | string) {
+  const queryParams = typeof params === "string"
+    ? { search: params }
+    : {
+        search: params?.search || undefined,
+        includeInactive: params?.includeInactive ? "true" : undefined,
+      };
+
+  const { data } = await api.get<any>(
     "/manager/quotes/measurement-types",
-    { params: search ? { search } : undefined },
+    { params: queryParams },
   );
 
-  if (!data.success) {
-    throw new Error(data.message || "Failed to load measurement types");
-  }
-
-  return data.data;
+  const raw = data?.data ?? data;
+  return Array.isArray(raw) ? (raw as QuoteMeasurementTypeItem[]) : [];
 }
 
-export async function getQuoteWorkItems(params: {
+export async function createQuoteMeasurementType(payload: {
+  value: string;
+  label: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}) {
+  const { data } = await api.post<any>("/manager/quotes/measurement-types", payload);
+  return (data?.data ?? data) as QuoteMeasurementTypeItem;
+}
+
+export async function updateQuoteMeasurementType(
+  id: string,
+  payload: Partial<{
+    value: string;
+    label: string;
+    sortOrder?: number;
+    isActive?: boolean;
+  }>,
+) {
+  const { data } = await api.put<any>(`/manager/quotes/measurement-types/${id}`, payload);
+  return (data?.data ?? data) as QuoteMeasurementTypeItem;
+}
+
+export async function disableQuoteMeasurementType(id: string) {
+  const { data } = await api.delete<any>(`/manager/quotes/measurement-types/${id}`);
+  return data;
+}
+
+export async function getQuoteWorkItems(params?: {
   projectType?: string;
   propertyType?: string;
   unitType?: string;
   search?: string;
+  categoryId?: string;
+  includeInactive?: boolean;
+  flat?: boolean;
 }) {
-  const { data } = await api.get<{ success: boolean; message: string; total?: number; data: QuoteWorkItemGroup[] }>(
+  const queryParams = params
+    ? {
+        ...params,
+        projectType: params.projectType?.toLowerCase(),
+        propertyType: params.propertyType?.toLowerCase(),
+        unitType: params.unitType?.toLowerCase(),
+        includeInactive: params.includeInactive ? "true" : undefined,
+        flat: params.flat ? "true" : undefined,
+      }
+    : undefined;
+
+  const { data } = await api.get<any>(
     "/manager/quotes/work-items",
-    { params },
+    { params: queryParams },
   );
 
-  if (!data.success) {
-    throw new Error(data.message || "Failed to load work items");
-  }
+  const raw = data?.data ?? data;
+  return raw;
+}
 
-  return data.data;
+export async function createQuoteWorkItem(payload: {
+  categoryId: string;
+  projectType: string;
+  propertyType: string;
+  unitType: string;
+  name: string;
+  measurementType: string;
+  unitCost?: number | null;
+  sortOrder?: number;
+  isActive?: boolean;
+}) {
+  const { data } = await api.post<any>("/manager/quotes/work-items", payload);
+  return (data?.data ?? data) as QuoteWorkItemLookup;
+}
+
+export async function updateQuoteWorkItem(
+  id: string,
+  payload: Partial<{
+    categoryId: string;
+    projectType: string;
+    propertyType: string;
+    unitType: string;
+    name: string;
+    measurementType: string;
+    unitCost?: number | null;
+    sortOrder?: number;
+    isActive?: boolean;
+  }>,
+) {
+  const { data } = await api.put<any>(`/manager/quotes/work-items/${id}`, payload);
+  return (data?.data ?? data) as QuoteWorkItemLookup;
+}
+
+export async function disableQuoteWorkItem(id: string) {
+  const { data } = await api.delete<any>(`/manager/quotes/work-items/${id}`);
+  return data;
 }
 
 export async function quickAddQuoteWorkItem(payload: QuickAddQuoteWorkItemPayload) {
@@ -446,5 +582,11 @@ export async function getQuoteEstimates(params?: {
   if (raw && Array.isArray(raw.quotes)) return raw.quotes as QuoteEstimateResponse[];
   return [] as QuoteEstimateResponse[];
 }
+
+export async function deleteQuoteEstimate(id: string) {
+  const { data } = await api.delete<{ success: boolean; message: string }>(`/admin/quote-estimates/${id}`);
+  return data;
+}
+
 
 

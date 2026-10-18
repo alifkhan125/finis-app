@@ -12,6 +12,13 @@ export type QuoteSelectedWorkItem = {
   selectedUnitPrice: number;
   selected: boolean;
   isCustom?: boolean;
+  description?: string;
+  estimatedHours?: string;
+  scopeChecklist?: string[];
+  locationMode?: "all" | "selected";
+  selectedFloorNumbers?: number[];
+  selectedUnitNames?: string[];
+  plannedLocationKeys?: string[];
 };
 
 type BackendQuoteItem = {
@@ -30,6 +37,13 @@ type BackendQuoteItem = {
   selectedUnit?: string;
   selectedUnitPrice?: number;
   selected?: boolean;
+  description?: string;
+  estimatedHours?: string;
+  scopeChecklist?: string[];
+  locationMode?: "all" | "selected";
+  selectedFloorNumbers?: number[];
+  selectedUnitNames?: string[];
+  plannedLocationKeys?: string[];
 };
 
 type QuoteWorkItemCardProps = {
@@ -82,14 +96,24 @@ export default function QuoteWorkItemCard({
     onSelectUnit(unitOptions[nextIndex].unit);
   };
 
-  console.log(item);
-  
+  const assignedLocationsCount = item.plannedLocationKeys?.length ?? (item.selectedFloorNumbers?.length ? item.selectedFloorNumbers.length : 0);
+
   return (
     <View className="rounded-[16px] border border-[#E6EBF1] bg-white px-4 py-4 shadow-sm">
       <View className="mb-4 flex-row items-start justify-between gap-3">
-        <Text className="flex-1 text-[16px] font-semibold text-[#101828]">
-          {item.title}
-        </Text>
+        <View className="flex-1">
+          <Text className="text-[16px] font-semibold text-[#101828]">
+            {item.title}
+          </Text>
+          {assignedLocationsCount > 0 ? (
+            <View className="mt-1 flex-row items-center gap-1">
+              <Ionicons name="location" size={12} color="#1F5577" />
+              <Text className="text-[11px] font-semibold text-[#1F5577]">
+                Assigned to {assignedLocationsCount} {assignedLocationsCount === 1 ? "unit/location" : "units/locations"}
+              </Text>
+            </View>
+          ) : null}
+        </View>
 
         <View className="flex-row items-center gap-2">
           <TouchableOpacity

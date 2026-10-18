@@ -1,438 +1,525 @@
-import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  FlatList,
   KeyboardAvoidingView,
   Modal,
-  Pressable,
   Platform,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
-type OptionItem = {
-  id: string;
-  name: string;
-  value?: string;
-};
-
-type WorkItemSuggestion = {
+export type WorkItemTemplateSuggestion = {
   id: string;
   name: string;
   category?: { id: string; name: string } | null;
   measurementType?: string | null;
   unitCost?: number | null;
+  estimatedHours?: number | null;
 };
-
-type SelectorType = "service" | "category" | "measurement";
 
 type AddCustomQuoteItemModalProps = {
   visible: boolean;
-  title: string;
-  quantity: string;
-  categoryId: string;
-  measurementType: string;
-  unitPrice: string;
-  categories: OptionItem[];
-  measurementTypes: OptionItem[];
-  workItemSuggestions: WorkItemSuggestion[];
-  onChangeTitle: (value: string) => void;
-  onChangeQuantity: (value: string) => void;
-  onChangeCategoryId: (value: string) => void;
-  onChangeMeasurementType: (value: string) => void;
-  onChangeUnitPrice: (value: string) => void;
-  onSelectWorkItem: (item: WorkItemSuggestion) => void;
+  plannedFloorNumbers?: number[];
+  getPlannedUnitNames?: (floor: number) => string[];
+  workItemSuggestions?: WorkItemTemplateSuggestion[];
   onClose: () => void;
-  onAdd: () => void;
-  isEditMode?: boolean;
+  onAddService: (service: {
+    title: string;
+    description: string;
+    estimatedHours: string;
+    unitPrice: string;
+    unit: string;
+    allowSubtasks: boolean;
+    selectedFloorNumbers: number[];
+    plannedLocationKeys: string[];
+    quantity: number;
+    subtotal: number;
+  }) => void;
 };
 
-type SelectorSheetProps = {
-  visible: boolean;
-  title: string;
-  options: OptionItem[];
-  selectedValue: string;
-  searchValue: string;
-  searchPlaceholder: string;
-  allowCustomValue?: boolean;
-  customValueLabel?: string;
-  onChangeSearch: (value: string) => void;
-  onSelect: (item: OptionItem) => void;
-  onClose: () => void;
-};
-
-function SelectorSheet({
+export default function AddCustomQuoteItemModal({
   visible,
-  title,
-  options,
-  selectedValue,
-  searchValue,
-  searchPlaceholder,
-  allowCustomValue = false,
-  customValueLabel,
-  onChangeSearch,
-  onSelect,
+  plannedFloorNumbers = [],
+  getPlannedUnitNames = () => [],
+  workItemSuggestions = [],
   onClose,
-}: SelectorSheetProps) {
-  const insets = useSafeAreaInsets();
-  const safeSearchValue = searchValue ?? "";
-  const normalizedSearch = safeSearchValue.trim().toLowerCase();
-  const filteredOptions = useMemo(() => {
-    if (!normalizedSearch) {
-      return options;
-    }
-    return options.filter((item) =>
-      (item.name ?? "").toLowerCase().includes(normalizedSearch),
-    );
-  }, [normalizedSearch, options]);
+  onAddService,
+}: AddCustomQuoteItemModalProps) {
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [hoursPerUnit, setHoursPerUnit] = useState("");
+  const [internalPrice, setInternalPrice] = useState("");
+  const [allowSubtasks, setAllowSubtasks] = useState(false);
+  const [selectedFloorNumbers, setSelectedFloorNumbers] = useState<number[]>([]);
+  const [plannedLocationKeys, setPlannedLocationKeys] = useState<string[]>([]);
 
-  const canUseCustomValue =
-    allowCustomValue &&
-    safeSearchValue.trim().length > 0 &&
-    !options.some(
-      (item) => (item.name ?? "").toLowerCase() === safeSearchValue.trim().toLowerCase(),
+  // Reset form when modal opens
+  const handleReset = () => {
+    setSelectedTemplateId("");
+    setTemplateDropdownOpen(false);
+    setTaskTitle("");
+    setDescription("");
+    setHoursPerUnit("");
+    setInternalPrice("");
+    setAllowSubtasks(false);
+    setSelectedFloorNumbers([]);
+    setPlannedLocationKeys([]);
+  };
+
+  const handleClose = () => {
+    handleReset();
+    onClose();
+  };
+
+  const allFloorUnitKeys = useMemo(
+    () =>
+      plannedFloorNumbers.flatMap((floor) =>
+        getPlannedUnitNames(floor).map(
+          (unitName) => `floor_${floor}_unit_${unitName}`,
+        ),
+      ),
+    [plannedFloorNumbers, getPlannedUnitNames],
+  );
+
+  const areAllFloorsSelected =
+    plannedFloorNumbers.length > 0 &&
+    plannedFloorNumbers.every((floor) => selectedFloorNumbers.includes(floor)) &&
+    allFloorUnitKeys.every((key) => plannedLocationKeys.includes(key));
+
+  const handleToggleSelectAllFloors = () => {
+    if (areAllFloorsSelected) {
+      setSelectedFloorNumbers([]);
+      setPlannedLocationKeys([]);
+    } else {
+      setSelectedFloorNumbers([...plannedFloorNumbers]);
+      setPlannedLocationKeys([...allFloorUnitKeys]);
+    }
+  };
+
+  const handleToggleFloor = (floor: number) => {
+    const isSelected = selectedFloorNumbers.includes(floor);
+    const floorKeys = getPlannedUnitNames(floor).map(
+      (unitName) => `floor_${floor}_unit_${unitName}`,
     );
+
+    if (isSelected) {
+      setSelectedFloorNumbers(selectedFloorNumbers.filter((f) => f !== floor));
+      setPlannedLocationKeys(
+        plannedLocationKeys.filter((k) => !floorKeys.includes(k)),
+      );
+    } else {
+      setSelectedFloorNumbers([...selectedFloorNumbers, floor]);
+      setPlannedLocationKeys(
+        Array.from(new Set([...plannedLocationKeys, ...floorKeys])),
+      );
+    }
+  };
+
+  const handleToggleUnit = (floor: number, unitName: string) => {
+    const targetKey = `floor_${floor}_unit_${unitName}`;
+    const isSelected = plannedLocationKeys.includes(targetKey);
+
+    if (isSelected) {
+      setPlannedLocationKeys(plannedLocationKeys.filter((k) => k !== targetKey));
+    } else {
+      setPlannedLocationKeys([...plannedLocationKeys, targetKey]);
+    }
+  };
+
+  const handleToggleSelectAllFloorUnits = (floor: number) => {
+    const floorKeys = getPlannedUnitNames(floor).map(
+      (unitName) => `floor_${floor}_unit_${unitName}`,
+    );
+    const allUnitsSelected = floorKeys.every((k) =>
+      plannedLocationKeys.includes(k),
+    );
+
+    if (allUnitsSelected) {
+      setPlannedLocationKeys(
+        plannedLocationKeys.filter((k) => !floorKeys.includes(k)),
+      );
+    } else {
+      setPlannedLocationKeys(
+        Array.from(new Set([...plannedLocationKeys, ...floorKeys])),
+      );
+    }
+  };
+
+  const handleSelectTemplate = (template: WorkItemTemplateSuggestion | null) => {
+    if (!template) {
+      setSelectedTemplateId("");
+      setTemplateDropdownOpen(false);
+      return;
+    }
+    setSelectedTemplateId(template.id);
+    setTaskTitle(template.name);
+    if (template.unitCost) {
+      setInternalPrice(String(template.unitCost));
+    }
+    if (template.estimatedHours) {
+      setHoursPerUnit(String(template.estimatedHours));
+    }
+    setTemplateDropdownOpen(false);
+  };
+
+  // Subtotal Calculation matching dashboard exactly:
+  // price * (selectedLocationKeys.length || 1)
+  const priceNumber = Number(internalPrice) || 0;
+  const locationCount = plannedLocationKeys.length || 1;
+  const subtotalNumber = priceNumber * locationCount;
+
+  const handleAdd = () => {
+    if (!taskTitle.trim()) {
+      return;
+    }
+
+    onAddService({
+      title: taskTitle.trim(),
+      description: description.trim(),
+      estimatedHours: hoursPerUnit.trim(),
+      unitPrice: String(priceNumber),
+      unit: "each",
+      allowSubtasks,
+      selectedFloorNumbers,
+      plannedLocationKeys,
+      quantity: locationCount,
+      subtotal: subtotalNumber,
+    });
+
+    handleClose();
+  };
+
+  const selectedTemplate = workItemSuggestions.find(
+    (t) => t.id === selectedTemplateId,
+  );
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <KeyboardAvoidingView
-        behavior="padding"
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
       >
-        <Pressable className="flex-1 justify-end bg-black/40" onPress={onClose}>
+        <Pressable
+          className="flex-1 items-center justify-center bg-black/50 px-4"
+          onPress={handleClose}
+        >
           <Pressable
-            className="max-h-[72%] rounded-t-[24px] bg-white px-5 pb-7 pt-4"
-            style={{ paddingBottom: Math.max(insets.bottom, 28) }}
-            onPress={(event) => event.stopPropagation()}
+            onPress={(e) => e.stopPropagation()}
+            className="w-full max-w-[420px] max-h-[90%] rounded-[24px] bg-white p-6 shadow-2xl"
           >
-            <View className="mb-4 h-1.5 w-12 self-center rounded-full bg-[#D8DEE5]" />
-            <View className="mb-4 flex-row items-center justify-between">
-              <Text className="text-[18px] font-bold text-[#141A22]">Select {title}</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close" size={24} color="#697487" />
+            {/* Header: ADD SERVICE with [X] */}
+            <View className="flex-row items-center justify-between border-b border-[#F1F5F9] pb-4">
+              <Text className="text-[19px] font-black tracking-tight text-[#111827]">
+                ADD SERVICE
+              </Text>
+              <TouchableOpacity
+                onPress={handleClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              value={safeSearchValue}
-              onChangeText={onChangeSearch}
-              placeholder={searchPlaceholder}
-              placeholderTextColor="#A0AEC0"
-              className="mb-4 h-[52px] rounded-[12px] border border-[#D8DEE5] bg-[#F7F9FB] px-4 text-[16px] text-[#141A22]"
-            />
-
-            {canUseCustomValue ? (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() =>
-                  onSelect({
-                    id: `custom-${safeSearchValue.trim().toLowerCase()}`,
-                    name: safeSearchValue.trim(),
-                    value: safeSearchValue.trim(),
-                  })
-                }
-                className="mb-3 rounded-[12px] border border-[#1F5577] bg-[#EEF6FB] px-4 py-3"
-              >
-                <Text className="text-[14px] font-medium text-[#1F5577]">
-                  {customValueLabel ?? `Use "${safeSearchValue.trim()}"`}
-                </Text>
-              </TouchableOpacity>
-            ) : null}
-
-            <FlatList
-              data={filteredOptions}
-              keyExtractor={(item, index) => `${title}-${index}-${item.id}-${item.value ?? item.name}`}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => {
-                const optionValue = item.value ?? item.name;
-                const selected = selectedValue === optionValue || selectedValue === item.id;
-                return (
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={() => onSelect(item)}
-                    className="mb-2 flex-row items-center justify-between rounded-[12px] border border-[#E3E8EE] bg-[#F8FAFC] px-4 py-3"
+              className="mt-4"
+              contentContainerStyle={{ paddingBottom: 24 }}
+            >
+              {/* Field 1: SELECT TEMPLATE (OPTIONAL) */}
+              <View className="mb-4">
+                <Text className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                  SELECT TEMPLATE (OPTIONAL)
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setTemplateDropdownOpen(!templateDropdownOpen)}
+                  className="h-[46px] flex-row items-center justify-between rounded-[12px] border border-[#D1D5DB] bg-[#FAFAFA] px-3.5"
+                >
+                  <Text
+                    numberOfLines={1}
+                    className="flex-1 text-[13px] text-[#374151]"
                   >
-                    <Text className={`text-[15px] ${selected ? "font-semibold text-[#1F5577]" : "text-[#2B2B2B]"}`}>
-                      {item.name ?? item.value ?? "Unnamed"}
-                    </Text>
-                    {selected ? (
-                      <Ionicons name="checkmark-circle" size={20} color="#1F5577" />
-                    ) : null}
-                  </TouchableOpacity>
-                );
-              }}
-              ListEmptyComponent={
-                <View className="mt-8 items-center">
-                  <Text className="text-[14px] text-[#697487]">No options found</Text>
+                    {selectedTemplate
+                      ? `${selectedTemplate.name}${
+                          selectedTemplate.unitCost
+                            ? ` ($${Number(selectedTemplate.unitCost).toFixed(2)})`
+                            : ""
+                        }`
+                      : "-- Custom Service (Type Manually) --"}
+                  </Text>
+                  <Ionicons
+                    name={templateDropdownOpen ? "chevron-up" : "chevron-down"}
+                    size={16}
+                    color="#6B7280"
+                  />
+                </TouchableOpacity>
+
+                {/* Dropdown Options */}
+                {templateDropdownOpen && (
+                  <View className="mt-1.5 max-h-[160px] rounded-[12px] border border-[#E5E7EB] bg-white shadow-lg">
+                    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                      <TouchableOpacity
+                        onPress={() => handleSelectTemplate(null)}
+                        className="border-b border-[#F3F4F6] px-3.5 py-2.5"
+                      >
+                        <Text className="text-[13px] font-semibold text-[#1F5577]">
+                          -- Custom Service (Type Manually) --
+                        </Text>
+                      </TouchableOpacity>
+                      {workItemSuggestions.map((item) => (
+                        <TouchableOpacity
+                          key={item.id}
+                          onPress={() => handleSelectTemplate(item)}
+                          className="border-b border-[#F3F4F6] px-3.5 py-2.5"
+                        >
+                          <Text className="text-[13px] text-[#374151]">
+                            {item.name}
+                            {item.unitCost ? ` ($${Number(item.unitCost).toFixed(2)})` : ""}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+
+              {/* Field 2: TASK TITLE */}
+              <View className="mb-4">
+                <Text className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                  TASK TITLE
+                </Text>
+                <TextInput
+                  value={taskTitle}
+                  onChangeText={(val) => {
+                    setSelectedTemplateId("");
+                    setTaskTitle(val);
+                  }}
+                  placeholder="e.g. Install Kitchen Cabinets"
+                  placeholderTextColor="#9CA3AF"
+                  className="h-[46px] rounded-[12px] border border-[#D1D5DB] bg-white px-3.5 text-[14px] text-[#111827]"
+                />
+              </View>
+
+              {/* Field 3: DESCRIPTION */}
+              <View className="mb-4">
+                <Text className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                  DESCRIPTION
+                </Text>
+                <TextInput
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Task details..."
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  numberOfLines={3}
+                  className="min-h-[75px] rounded-[12px] border border-[#D1D5DB] bg-white px-3.5 py-2.5 text-[13px] text-[#111827]"
+                  textAlignVertical="top"
+                />
+              </View>
+
+              {/* Field 4 & 5: HOURS / UNIT & INTERNAL PRICE */}
+              <View className="mb-4 flex-row gap-3">
+                <View className="flex-1">
+                  <Text className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                    HOURS / UNIT
+                  </Text>
+                  <TextInput
+                    value={hoursPerUnit}
+                    onChangeText={setHoursPerUnit}
+                    keyboardType="decimal-pad"
+                    placeholder="e.g. 4"
+                    placeholderTextColor="#9CA3AF"
+                    className="h-[46px] rounded-[12px] border border-[#D1D5DB] bg-white px-3.5 text-[14px] text-[#111827]"
+                  />
                 </View>
-              }
-            />
+                <View className="flex-1">
+                  <Text className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                    INTERNAL PRICE
+                  </Text>
+                  <TextInput
+                    value={internalPrice}
+                    onChangeText={setInternalPrice}
+                    keyboardType="decimal-pad"
+                    placeholder="e.g. 150"
+                    placeholderTextColor="#9CA3AF"
+                    className="h-[46px] rounded-[12px] border border-[#D1D5DB] bg-white px-3.5 text-[14px] text-[#111827]"
+                  />
+                </View>
+              </View>
+
+              {/* Card 6: SUBTOTAL */}
+              <View className="mb-4 rounded-[14px] border border-[#DBEAFE] bg-[#EFF6FF] px-4 py-3">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-[11px] font-black uppercase tracking-wider text-[#6B7280]">
+                    SUBTOTAL
+                  </Text>
+                  <Text className="text-[17px] font-black text-[#111827]">
+                    ${subtotalNumber.toFixed(2)}
+                  </Text>
+                </View>
+                <Text className="mt-0.5 text-[12px] text-[#6B7280]">
+                  Per selected floor/unit: ${priceNumber.toFixed(2)} x {locationCount}
+                </Text>
+              </View>
+
+              {/* Checkbox 7: Allow Subtasks */}
+              <Pressable
+                onPress={() => setAllowSubtasks(!allowSubtasks)}
+                className="mb-4 flex-row items-center gap-2.5"
+              >
+                <View
+                  className={`h-5 w-5 items-center justify-center rounded-[6px] border ${
+                    allowSubtasks
+                      ? "border-[#1F5577] bg-[#1F5577]"
+                      : "border-[#9CA3AF] bg-white"
+                  }`}
+                >
+                  {allowSubtasks && (
+                    <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                  )}
+                </View>
+                <Text className="text-[13px] font-medium text-[#374151]">
+                  Allow Subtasks
+                </Text>
+              </Pressable>
+
+              {/* Section 8: FLOORS / SECTIONS */}
+              {plannedFloorNumbers.length > 0 && (
+                <View className="mb-4 rounded-[16px] border border-[#E5E7EB] bg-[#F9FAFB] p-4">
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-[11px] font-black uppercase tracking-wider text-[#6B7280]">
+                      FLOORS / SECTIONS
+                    </Text>
+                    <TouchableOpacity onPress={handleToggleSelectAllFloors}>
+                      <Text className="text-[12px] font-bold text-[#2563EB]">
+                        {areAllFloorsSelected ? "Deselect All" : "Select All"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Floor pills */}
+                  <View className="mt-3 flex-row flex-wrap gap-2">
+                    {plannedFloorNumbers.map((floor) => {
+                      const isSelected = selectedFloorNumbers.includes(floor);
+                      return (
+                        <TouchableOpacity
+                          key={floor}
+                          activeOpacity={0.8}
+                          onPress={() => handleToggleFloor(floor)}
+                          className={`rounded-full px-3.5 py-1.5 border ${
+                            isSelected
+                              ? "bg-[#DBEAFE] border-[#93C5FD]"
+                              : "bg-white border-[#E5E7EB]"
+                          }`}
+                        >
+                          <Text
+                            className={`text-[12px] font-semibold ${
+                              isSelected ? "text-[#1D4ED8]" : "text-[#4B5563]"
+                            }`}
+                          >
+                            Floor {floor}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Units under selected floors */}
+                  {selectedFloorNumbers.map((floor) => {
+                    const unitNames = getPlannedUnitNames(floor);
+                    if (unitNames.length === 0) return null;
+                    const allFloorUnitsSelected = unitNames.every((unitName) =>
+                      plannedLocationKeys.includes(`floor_${floor}_unit_${unitName}`),
+                    );
+
+                    return (
+                      <View
+                        key={`units-floor-${floor}`}
+                        className="mt-3 border-t border-[#E5E7EB] pt-3"
+                      >
+                        <View className="flex-row items-center justify-between">
+                          <Text className="text-[11px] font-black uppercase tracking-wider text-[#6B7280]">
+                            Floor {floor} Units / Rooms
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() => handleToggleSelectAllFloorUnits(floor)}
+                          >
+                            <Text className="text-[11px] font-bold text-[#2563EB]">
+                              {allFloorUnitsSelected ? "Deselect All" : "Select All"}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                        <View className="mt-2 flex-row flex-wrap gap-1.5">
+                          {unitNames.map((unitName) => {
+                            const unitKey = `floor_${floor}_unit_${unitName}`;
+                            const isUnitSelected =
+                              plannedLocationKeys.includes(unitKey);
+
+                            return (
+                              <TouchableOpacity
+                                key={unitKey}
+                                activeOpacity={0.8}
+                                onPress={() => handleToggleUnit(floor, unitName)}
+                                className={`rounded-full px-3 py-1 border ${
+                                  isUnitSelected
+                                    ? "bg-[#DBEAFE] border-[#93C5FD]"
+                                    : "bg-white border-[#E5E7EB]"
+                                }`}
+                              >
+                                <Text
+                                  className={`text-[11px] font-semibold ${
+                                    isUnitSelected
+                                      ? "text-[#1D4ED8]"
+                                      : "text-[#4B5563]"
+                                  }`}
+                                >
+                                  {unitName}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Action Buttons: Cancel and Add Service */}
+              <View className="mt-3 flex-row gap-3">
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={handleClose}
+                  className="h-[46px] flex-1 items-center justify-center rounded-[12px] border border-[#D1D5DB] bg-white"
+                >
+                  <Text className="text-[14px] font-medium text-[#374151]">
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={handleAdd}
+                  disabled={!taskTitle.trim()}
+                  className={`h-[46px] flex-1 items-center justify-center rounded-[12px] ${
+                    taskTitle.trim() ? "bg-[#71879B]" : "bg-[#94A3B8]"
+                  }`}
+                >
+                  <Text className="text-[14px] font-semibold text-white">
+                    Add Service
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </Pressable>
         </Pressable>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
-
-function SelectorField({
-  label,
-  value,
-  placeholder,
-  onPress,
-}: {
-  label: string;
-  value: string;
-  placeholder: string;
-  onPress: () => void;
-}) {
-  return (
-    <View className="mt-3">
-      <Text className="mb-2 text-[12px] text-[#66707B]">{label}</Text>
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={onPress}
-        className="h-[42px] flex-row items-center justify-between rounded-[10px] border border-[#D9E1E8] bg-[#F7F9FB] px-3"
-      >
-        <Text className={`text-[13px] ${value ? "text-[#1F2937]" : "text-[#98A2B3]"}`}>
-          {value || placeholder}
-        </Text>
-        <Ionicons name="chevron-down" size={16} color="#66707B" />
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-export default function AddCustomQuoteItemModal({
-  visible,
-  title,
-  quantity,
-  categoryId,
-  measurementType,
-  unitPrice,
-  categories,
-  measurementTypes,
-  workItemSuggestions,
-  onChangeTitle,
-  onChangeQuantity,
-  onChangeCategoryId,
-  onChangeMeasurementType,
-  onChangeUnitPrice,
-  onSelectWorkItem,
-  onClose,
-  onAdd,
-  isEditMode = false,
-}: AddCustomQuoteItemModalProps) {
-  const [activeSelector, setActiveSelector] = useState<SelectorType | null>(null);
-  const [serviceSearch, setServiceSearch] = useState("");
-  const [categorySearch, setCategorySearch] = useState("");
-  const [measurementSearch, setMeasurementSearch] = useState("");
-
-  const selectedCategoryLabel =
-    categories.find((item) => item.id === categoryId)?.name ?? "";
-  const selectedMeasurementLabel =
-    measurementTypes.find(
-      (item) => (item.value ?? item.name) === measurementType,
-    )?.name ?? "";
-
-  const serviceOptions = useMemo(
-    () =>
-      workItemSuggestions.map((item, index) => ({
-        id: item.id || `service-${index}`,
-        name: item.name,
-        value: item.name,
-      })),
-    [workItemSuggestions],
-  );
-
-  const handleSelectService = (option: OptionItem) => {
-    const matchedItem = workItemSuggestions.find(
-      (item) => item.id === option.id || item.name === option.name,
-    );
-
-    if (matchedItem) {
-      onSelectWorkItem(matchedItem);
-    } else {
-      onChangeTitle(option.name);
-    }
-
-    setServiceSearch(option.name);
-    setActiveSelector(null);
-  };
-
-  return (
-    <>
-      <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
-        <KeyboardAvoidingView
-          behavior="padding"
-          className="flex-1"
-        >
-          <Pressable
-            className="flex-1 items-center justify-center bg-black/30 px-6"
-            onPress={onClose}
-          >
-            <Pressable
-              onPress={(event) => event.stopPropagation()}
-              className="w-full max-w-[340px] max-h-[100%] self-center rounded-[16px] bg-white p-4 shadow-lg"
-            >
-              <ScrollView
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 24 }}
-              >
-                <Text className="text-[16px] font-semibold text-[#1F2937]">
-                  {isEditMode ? "Edit Item" : "Add Custom Item"}
-                </Text>
-                <Text className="mt-1 text-[13px] leading-5 text-[#66707B]">
-                  {isEditMode
-                    ? "Update the item details using the current values."
-                    : "Add a manual service if it does not exist in the selected catalog."}
-                </Text>
-
-                <SelectorField
-                  label="Service Name"
-                  value={title}
-                  placeholder="Select or type service name"
-                  onPress={() => {
-                    setServiceSearch(title);
-                    setActiveSelector("service");
-                  }}
-                />
-
-                <View className="mt-3">
-                  <Text className="mb-2 text-[12px] text-[#66707B]">Quantity</Text>
-                  <TextInput
-                    value={quantity}
-                    onChangeText={onChangeQuantity}
-                    keyboardType="decimal-pad"
-                    placeholder="1"
-                    placeholderTextColor="#98A2B3"
-                    className="h-[42px] rounded-[10px] border border-[#D9E1E8] bg-[#F7F9FB] px-3 text-[13px] text-[#1F2937]"
-                  />
-                </View>
-
-                {!isEditMode && (
-                  <SelectorField
-                    label="Category"
-                    value={selectedCategoryLabel}
-                    placeholder="Select category"
-                    onPress={() => {
-                      setCategorySearch("");
-                      setActiveSelector("category");
-                    }}
-                  />
-                )}
-
-                <SelectorField
-                  label="Unit of Measurement"
-                  value={selectedMeasurementLabel}
-                  placeholder="Select unit of measurement"
-                  onPress={() => {
-                    setMeasurementSearch("");
-                    setActiveSelector("measurement");
-                  }}
-                />
-
-                <View className="mt-3">
-                  <Text className="mb-2 text-[12px] text-[#66707B]">Unit Price</Text>
-                  <View className="h-[42px] flex-row items-center rounded-[10px] border border-[#D9E1E8] bg-[#F7F9FB] px-3">
-                    <Text className="mr-2 text-[13px] text-[#98A2B3]">$</Text>
-                    <TextInput
-                      value={unitPrice}
-                      onChangeText={onChangeUnitPrice}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      placeholderTextColor="#98A2B3"
-                      className="flex-1 text-[13px] text-[#1F2937]"
-                    />
-                  </View>
-                </View>
-
-                <View className="mt-4 flex-row gap-3">
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={onClose}
-                    className="h-[42px] flex-1 items-center justify-center rounded-[10px] border border-[#D5DDE6] bg-white"
-                  >
-                    <Text className="text-[13px] font-medium text-[#344054]">Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={onAdd}
-                    className="h-[42px] flex-1 items-center justify-center rounded-[10px] bg-[#1F5577]"
-                  >
-                    <Text className="text-[13px] font-medium text-white">
-                      {isEditMode ? "Save" : "Add Item"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            </Pressable>
-          </Pressable>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      <SelectorSheet
-        visible={activeSelector === "service"}
-        title="Service Name"
-        options={serviceOptions}
-        selectedValue={title}
-        searchValue={serviceSearch}
-        searchPlaceholder="Search service name"
-        allowCustomValue
-        customValueLabel={(serviceSearch ?? "").trim() ? `Use "${(serviceSearch ?? "").trim()}"` : undefined}
-        onChangeSearch={(value) => {
-          setServiceSearch(value);
-          onChangeTitle(value);
-        }}
-        onSelect={handleSelectService}
-        onClose={() => setActiveSelector(null)}
-      />
-
-      <SelectorSheet
-        visible={activeSelector === "category"}
-        title="Category"
-        options={categories}
-        selectedValue={categoryId}
-        searchValue={categorySearch}
-        searchPlaceholder="Search category"
-        onChangeSearch={setCategorySearch}
-        onSelect={(item) => {
-          onChangeCategoryId(item.id);
-          setCategorySearch(item.name);
-          setActiveSelector(null);
-        }}
-        onClose={() => setActiveSelector(null)}
-      />
-
-      <SelectorSheet
-        visible={activeSelector === "measurement"}
-        title="Unit of Measurement"
-        options={measurementTypes}
-        selectedValue={measurementType}
-        searchValue={measurementSearch}
-        searchPlaceholder="Search measurement"
-        allowCustomValue
-        customValueLabel={(measurementSearch ?? "").trim() ? `Use "${(measurementSearch ?? "").trim()}"` : undefined}
-        onChangeSearch={setMeasurementSearch}
-        onSelect={(item) => {
-          onChangeMeasurementType(item.value ?? item.name);
-          setMeasurementSearch(item.name);
-          setActiveSelector(null);
-        }}
-        onClose={() => setActiveSelector(null)}
-      />
-    </>
-  );
-}
-
-

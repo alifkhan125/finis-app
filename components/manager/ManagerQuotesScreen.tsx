@@ -2,6 +2,7 @@ import React, { useMemo, useState , useEffect } from "react";
 
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -28,6 +29,7 @@ import {
   sendQuoteEstimate,
   acceptAndCreateProject,
   getQuoteEstimates,
+  deleteQuoteEstimate,
   type QuoteEstimateResponse,
   type QuoteSelectorOption,
   type QuoteWorkItemGroup,
@@ -40,9 +42,14 @@ import { useCompaniesQuery } from "@/hooks/company/company";
 import { toast } from "sonner-native";
 import { Ionicons } from "@expo/vector-icons";
 import AddCustomQuoteItemModal from "./quotes/AddCustomQuoteItemModal";
+import EditQuoteItemModal from "./quotes/EditQuoteItemModal";
 import ApplyDiscountModal from "./quotes/ApplyDiscountModal";
 import QuoteBuilderForm from "./quotes/QuoteBuilderForm";
 import QuoteFinalReviewStep from "./quotes/QuoteFinalReviewStep";
+import QuoteCategoriesTab from "./quotes/QuoteCategoriesTab";
+import QuoteMeasurementsTab from "./quotes/QuoteMeasurementsTab";
+import QuoteWorkItemsTab from "./quotes/QuoteWorkItemsTab";
+import QuoteOverviewTab from "./quotes/QuoteOverviewTab";
 import {
   formatCurrency,
   type QuoteProjectType,
@@ -74,11 +81,19 @@ function getValidUntilLabel() {
   });
 }
 
+export type QuoteTabId =
+  | "builder"
+  | "overview"
+  | "quotes"
+  | "categories"
+  | "measurements"
+  | "items";
+
 export default function ManagerQuotesScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
-  const [activeTab, setActiveTab] = useState<"builder" | "quotes">("builder");
+  const [activeTab, setActiveTab] = useState<QuoteTabId>("builder");
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [companyId, setCompanyId] = useState("");
   const [companySheetVisible, setCompanySheetVisible] = useState(false);
@@ -118,6 +133,44 @@ export default function ManagerQuotesScreen() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editGroupId, setEditGroupId] = useState("");
   const [editItemId, setEditItemId] = useState("");
+
+  // Detailed Service Scoping & Floor/Unit Modal State
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editQuantity, setEditQuantity] = useState("1");
+  const [editUnit, setEditUnit] = useState("pcs");
+  const [editUnitPrice, setEditUnitPrice] = useState("0");
+  const [editHours, setEditHours] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editSelectedFloors, setEditSelectedFloors] = useState<number[]>([]);
+  const [editLocationKeys, setEditLocationKeys] = useState<string[]>([]);
+  const [editChecklist, setEditChecklist] = useState<string[]>([]);
+
+  const plannedFloorNumbers = useMemo(() => {
+    if (floorStart && floorEnd) {
+      const start = Number(floorStart);
+      const end = Number(floorEnd);
+      return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index);
+    }
+    if (floorsCount) {
+      const count = Number(floorsCount);
+      const start = Number(floorStart) || 1;
+      return Array.from({ length: Math.max(0, count) }, (_, index) => start + index);
+    }
+    return [];
+  }, [floorStart, floorEnd, floorsCount]);
+
+  const getPlannedUnitNames = (floor: number) => {
+    if (!unitStart) return [];
+    const start = Number(unitStart);
+    const count = unitEnd
+      ? Math.max(0, Number(unitEnd) - start + 1)
+      : unitsPerFloor
+        ? Number(unitsPerFloor)
+        : 1;
+    const floorOffset = floor - (Number(floorStart) || plannedFloorNumbers[0] || 1);
+    return Array.from({ length: count }, (_, index) => String(start + floorOffset * 100 + index));
+  };
 
   const quoteEstimatesQuery = useQuery({
     queryKey: ["admin", "quote-estimates"],
@@ -195,7 +248,9 @@ export default function ManagerQuotesScreen() {
 
   const categoryOptions = (quoteCategoriesQuery.data ?? []).map(toSelectorOption);
   const measurementOptions = (quoteSelectors?.measurementTypes ?? []).map(toSelectorOption);
-  const workItemSuggestions = (quoteWorkItemsQuery.data ?? []).flatMap((group) => group.data);
+  const workItemSuggestions = (quoteWorkItemsQuery.data ?? []).flatMap(
+    (group: QuoteWorkItemGroup | any) => group.data || [],
+  );
 
   const backendWorkGroups = useMemo(
     () =>
@@ -337,11 +392,25 @@ export default function ManagerQuotesScreen() {
           .filter((item) => item.selected)
           .map((item, index) => ({
             title: item.title,
+            description: item.description,
             quantity: Number(item.quantity) || 1,
             unit: item.selectedUnit || "each",
             unitPrice: Number(item.selectedUnitPrice) || 0,
-            estimatedHours: estimatedTime ? Number(estimatedTime) || undefined : undefined,
+            estimatedHours: item.estimatedHours
+              ? Number(item.estimatedHours)
+              : estimatedTime
+              ? Number(estimatedTime) || undefined
+              : undefined,
             sortOrder: index,
+            scopeChecklist: item.scopeChecklist,
+            locationMode:
+              item.locationMode ||
+              (item.plannedLocationKeys && item.plannedLocationKeys.length > 0
+                ? "selected"
+                : "all"),
+            selectedFloorNumbers: item.selectedFloorNumbers,
+            selectedUnitNames: item.selectedUnitNames,
+            plannedLocationKeys: item.plannedLocationKeys,
           }))
       );
 
@@ -518,13 +587,46 @@ ${companyName || "Finis"}`,
 
     setEditGroupId(groupId);
     setEditItemId(itemId);
-    setCustomTitle(currentItem.title);
-    setCustomQuantity(currentItem.quantity);
-    setCustomMeasurementType(currentItem.selectedUnit);
-    setCustomUnitPrice(String(currentItem.selectedUnitPrice));
-    setCustomCategoryId("");
-    setIsEditMode(true);
-    setCustomItemModalVisible(true);
+    setEditTitle(currentItem.title);
+    setEditQuantity(currentItem.quantity);
+    setEditUnit(currentItem.selectedUnit);
+    setEditUnitPrice(String(currentItem.selectedUnitPrice));
+    setEditHours(currentItem.estimatedHours || "");
+    setEditDescription(currentItem.description || "");
+    setEditSelectedFloors(
+      currentItem.selectedFloorNumbers && currentItem.selectedFloorNumbers.length > 0
+        ? currentItem.selectedFloorNumbers
+        : plannedFloorNumbers.length > 0
+        ? [...plannedFloorNumbers]
+        : [],
+    );
+    setEditLocationKeys(currentItem.plannedLocationKeys || []);
+    setEditChecklist(currentItem.scopeChecklist || []);
+    setEditModalVisible(true);
+  };
+
+  const handleDeleteEstimate = (quote: QuoteEstimateResponse) => {
+    Alert.alert(
+      "Delete Quote",
+      `Are you sure you want to delete quote #${quote.quoteNumber || ""}? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteQuoteEstimate(quote.id);
+              toast.success(`Quote #${quote.quoteNumber || ""} deleted successfully!`);
+              void queryClient.invalidateQueries({ queryKey: ["admin", "quote-estimates"] });
+            } catch (err: any) {
+              console.error("Delete estimate error:", err);
+              toast.error(err?.message || "Failed to delete quote estimate.");
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleDeleteItem = (groupId: string, itemId: string) => {
@@ -534,10 +636,8 @@ ${companyName || "Finis"}`,
     const currentItem = currentGroup?.items.find((i) => i.id === itemId);
 
     if (currentItem?.isCustom) {
-      // Real database ID - call backend API
       deleteManagerQuote(itemId)
         .then(() => {
-          console.log("Quote item deleted successfully from backend:", itemId);
           setWorkGroups((current) =>
             deleteQuoteWorkItem(current, groupId, itemId),
           );
@@ -557,8 +657,6 @@ ${companyName || "Finis"}`,
           toast.error("Unable to remove the quote item right now.");
         });
     } else {
-      // Fake/generated ID - just remove from local state
-      console.log("Removing catalog item from local state (no backend delete):", itemId);
       setWorkGroups((current) =>
         deleteQuoteWorkItem(current, groupId, itemId),
       );
@@ -567,64 +665,30 @@ ${companyName || "Finis"}`,
   };
 
   const handleSaveEditItem = () => {
-    if (!customTitle.trim()) {
+    if (!editTitle.trim()) {
       toast.error("Enter a service name for the item.");
       return;
     }
 
-    const nextQuantity = Number(customQuantity) || 0;
-    const nextUnitPrice = Number(customUnitPrice) || 0;
+    const nextQuantity = Number(editQuantity) || 1;
+    const nextUnitPrice = Number(editUnitPrice) || 0;
 
-    if (isEditMode && editItemId) {
-      const currentGroup = workGroups.find((g) => g.id === editGroupId);
-      const currentItem = currentGroup?.items.find((i) => i.id === editItemId);
-
-      if (currentItem?.isCustom) {
-        updateManagerQuote(editItemId, {
-          title: customTitle,
-          quantity: nextQuantity,
-          unit: customMeasurementType,
-          unitPrice: nextUnitPrice,
-          isCustom: true,
-        })
-          .then((updatedQuote) => {
-            setWorkGroups((current) =>
-              updateQuoteWorkItemDetails(current, editGroupId, editItemId, {
-                title: updatedQuote.title,
-                quantity: String(updatedQuote.quantity),
-                unit: updatedQuote.unit ?? "pcs",
-                unitPrice: String(updatedQuote.unitPrice),
-              }),
-            );
-            void queryClient.fetchQuery({
-              queryKey: ["manager", "quotes", projectType, propertyType, unitType],
-              queryFn: () =>
-                getManagerQuotes({
-                  projectType,
-                  propertyType,
-                  unitType,
-                }),
-            });
-            setCustomItemModalVisible(false);
-            setIsEditMode(false);
-          })
-          .catch(() => {
-            toast.error("Unable to save the quote update right now.");
-          });
-      } else {
-        // Catalog item edit - just update local state
-        setWorkGroups((current) =>
-          updateQuoteWorkItemDetails(current, editGroupId, editItemId, {
-            title: customTitle,
-            quantity: String(nextQuantity),
-            unit: customMeasurementType,
-            unitPrice: String(nextUnitPrice),
-          }),
-        );
-        setCustomItemModalVisible(false);
-        setIsEditMode(false);
-      }
-    }
+    setWorkGroups((current) =>
+      updateQuoteWorkItemDetails(current, editGroupId, editItemId, {
+        title: editTitle.trim(),
+        quantity: String(nextQuantity),
+        unit: editUnit,
+        unitPrice: String(nextUnitPrice),
+        description: editDescription.trim() || undefined,
+        estimatedHours: editHours.trim() || undefined,
+        selectedFloorNumbers: editSelectedFloors,
+        plannedLocationKeys: editLocationKeys,
+        scopeChecklist: editChecklist,
+        locationMode: editLocationKeys.length > 0 ? "selected" : "all",
+      }),
+    );
+    setEditModalVisible(false);
+    toast.success("Service updated with location scope!");
   };
 
   return (
@@ -656,88 +720,99 @@ ${companyName || "Finis"}`,
           </Text>
         </View>
 
-        {/* Tab Switcher: Builder vs Quotes */}
-        <View className="mx-5 mt-4 flex-row rounded-[14px] bg-[#D7E0E8] p-1">
-          <Pressable
-            onPress={() => setActiveTab("builder")}
-            style={{
-              flex: 1,
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 10,
-              paddingVertical: 10,
-              backgroundColor: activeTab === "builder" ? "#ffffff" : "transparent",
-              ...(activeTab === "builder"
-                ? {
-                    elevation: 1,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 2,
-                  }
-                : {}),
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: "600",
-                color: activeTab === "builder" ? "#1F5577" : "#64748B",
-              }}
-            >
-              Quote Builder
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              setActiveTab("quotes");
-              void quoteEstimatesQuery.refetch();
-            }}
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              borderRadius: 10,
-              paddingVertical: 10,
-              backgroundColor: activeTab === "quotes" ? "#ffffff" : "transparent",
-              ...(activeTab === "quotes"
-                ? {
-                    elevation: 1,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 2,
-                  }
-                : {}),
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: "600",
-                color: activeTab === "quotes" ? "#1F5577" : "#64748B",
-              }}
-            >
-              All Quotes
-            </Text>
-            {quoteEstimatesList.length > 0 && (
-              <View
+        {/* 6-Tab Horizontal Navigation Bar */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="mx-5 mt-4"
+          contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
+        >
+          {[
+            { id: "builder" as const, label: "Quote Builder", icon: "construct-outline" as const },
+            { id: "overview" as const, label: "Selector Guide", icon: "sparkles-outline" as const },
+            {
+              id: "quotes" as const,
+              label: "All Quotes",
+              icon: "document-text-outline" as const,
+              count: quoteEstimatesList.length,
+            },
+            {
+              id: "categories" as const,
+              label: "Categories",
+              icon: "pricetags-outline" as const,
+              count: (quoteCategoriesQuery.data || []).length,
+            },
+            {
+              id: "measurements" as const,
+              label: "Measurements",
+              icon: "speedometer-outline" as const,
+              count: (quoteSelectors?.measurementTypes || []).length,
+            },
+            { id: "items" as const, label: "Work Items", icon: "layers-outline" as const },
+          ].map((tab) => {
+            const isSelected = activeTab === tab.id;
+            return (
+              <Pressable
+                key={tab.id}
+                onPress={() => {
+                  setActiveTab(tab.id);
+                  if (tab.id === "quotes") void quoteEstimatesQuery.refetch();
+                }}
                 style={{
-                  backgroundColor: "#1F5577",
-                  borderRadius: 9999,
-                  paddingHorizontal: 8,
-                  paddingVertical: 2,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  borderRadius: 14,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  backgroundColor: isSelected ? "#1F5577" : "#FFFFFF",
+                  borderWidth: 1,
+                  borderColor: isSelected ? "#1F5577" : "#D7E0E8",
+                  elevation: isSelected ? 2 : 0,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: isSelected ? 0.15 : 0,
+                  shadowRadius: 2,
                 }}
               >
-                <Text style={{ fontSize: 11, fontWeight: "bold", color: "#ffffff" }}>
-                  {quoteEstimatesList.length}
+                <Ionicons
+                  name={tab.icon}
+                  size={15}
+                  color={isSelected ? "#FFFFFF" : "#64748B"}
+                />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: isSelected ? "#FFFFFF" : "#64748B",
+                  }}
+                >
+                  {tab.label}
                 </Text>
-              </View>
-            )}
-          </Pressable>
-        </View>
+                {tab.count !== undefined && tab.count > 0 && (
+                  <View
+                    style={{
+                      borderRadius: 9999,
+                      paddingHorizontal: 7,
+                      paddingVertical: 1.5,
+                      backgroundColor: isSelected ? "rgba(255,255,255,0.25)" : "#E2E8F0",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: "700",
+                        color: isSelected ? "#FFFFFF" : "#475569",
+                      }}
+                    >
+                      {tab.count}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
         {activeTab === "builder" ? (
           <View className="mt-6 px-5">
@@ -906,7 +981,7 @@ ${companyName || "Finis"}`,
               />
             )}
           </View>
-        ) : (
+        ) : activeTab === "quotes" ? (
           <View className="mt-5 px-5">
             {/* Header with New Quote Button */}
             <View className="mb-4 flex-row items-center justify-between gap-3">
@@ -1129,70 +1204,98 @@ ${companyName || "Finis"}`,
                     </View>
 
                     {/* Pricing & Actions */}
-                    <View className="mt-4 flex-row items-center justify-between border-t border-[#F1F5F9] pt-3">
-                      <View>
-                        <Text className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">
-                          Items ({quote.tasks?.length ?? 0})
-                        </Text>
-                        <Text className="mt-0.5 text-[18px] font-black text-[#1F5577]">
-                          {formatCurrency(Number(quote.totalAmount || 0))}
-                        </Text>
+                    <View className="mt-4 border-t border-[#F1F5F9] pt-3">
+                      {/* Top Row: Items count + Total Price on left, Delete button on right */}
+                      <View className="flex-row items-center justify-between">
+                        <View>
+                          <Text className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">
+                            Items ({quote.tasks?.length ?? 0})
+                          </Text>
+                          <Text className="mt-0.5 text-[18px] font-black text-[#1F5577]">
+                            {formatCurrency(Number(quote.totalAmount || 0))}
+                          </Text>
+                        </View>
+
+                        {/* Delete Estimate Button - safely positioned inside card */}
+                        <TouchableOpacity
+                          activeOpacity={0.8}
+                          onPress={() => handleDeleteEstimate(quote)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={{
+                            width: 36,
+                            height: 36,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: 10,
+                            borderWidth: 1,
+                            borderColor: "#FECACA",
+                            backgroundColor: "#FEF2F2",
+                          }}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                        </TouchableOpacity>
                       </View>
 
-                      {/* Action Buttons */}
-                      <View className="flex-row gap-2">
-                        {!isConverted &&
-                          quote.status !== "rejected" &&
-                          quote.status !== "cancelled" && (
-                            <Pressable
-                              onPress={() => handleSendEstimate(quote)}
-                              disabled={isSending}
-                              style={{
-                                flexDirection: "row",
-                                alignItems: "center",
-                                gap: 6,
-                                borderRadius: 10,
-                                borderWidth: 1,
-                                borderColor: "#CBD5E1",
-                                backgroundColor: "#FFFFFF",
-                                paddingHorizontal: 14,
-                                paddingVertical: 8,
-                              }}
-                            >
-                              {isSending ? (
-                                <ActivityIndicator
-                                  size="small"
+                      {/* Bottom Row: Actions (Send, Convert to Project or Project Created) */}
+                      {!isConverted &&
+                      quote.status !== "rejected" &&
+                      quote.status !== "cancelled" ? (
+                        <View className="mt-3 flex-row gap-2.5">
+                          <Pressable
+                            onPress={() => handleSendEstimate(quote)}
+                            disabled={isSending}
+                            style={{
+                              flex: 1,
+                              flexDirection: "row",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 6,
+                              borderRadius: 12,
+                              borderWidth: 1,
+                              borderColor: "#CBD5E1",
+                              backgroundColor: "#FFFFFF",
+                              paddingVertical: 10,
+                              paddingHorizontal: 8,
+                            }}
+                          >
+                            {isSending ? (
+                              <ActivityIndicator
+                                size="small"
+                                color="#1F5577"
+                              />
+                            ) : (
+                              <>
+                                <Ionicons
+                                  name="mail-outline"
+                                  size={15}
                                   color="#1F5577"
                                 />
-                              ) : (
-                                <>
-                                  <Ionicons
-                                    name="mail-outline"
-                                    size={14}
-                                    color="#1F5577"
-                                  />
-                                  <Text style={{ fontSize: 12, fontWeight: "600", color: "#1F5577" }}>
-                                    Send
-                                  </Text>
-                                </>
-                              )}
-                            </Pressable>
-                          )}
+                                <Text
+                                  style={{
+                                    fontSize: 13,
+                                    fontWeight: "600",
+                                    color: "#1F5577",
+                                  }}
+                                >
+                                  Send
+                                </Text>
+                              </>
+                            )}
+                          </Pressable>
 
-                        {!isConverted &&
-                        quote.status !== "rejected" &&
-                        quote.status !== "cancelled" ? (
                           <Pressable
                             onPress={() => handleConvertEstimate(quote)}
                             disabled={isConverting}
                             style={{
+                              flex: 1.5,
                               flexDirection: "row",
                               alignItems: "center",
+                              justifyContent: "center",
                               gap: 6,
-                              borderRadius: 10,
+                              borderRadius: 12,
                               backgroundColor: "#1F5577",
-                              paddingHorizontal: 14,
-                              paddingVertical: 8,
+                              paddingVertical: 10,
+                              paddingHorizontal: 8,
                             }}
                           >
                             {isConverting ? (
@@ -1204,35 +1307,49 @@ ${companyName || "Finis"}`,
                               <>
                                 <Ionicons
                                   name="checkmark-circle-outline"
-                                  size={14}
+                                  size={15}
                                   color="#FFFFFF"
                                 />
-                                <Text style={{ fontSize: 12, fontWeight: "600", color: "#FFFFFF" }}>
+                                <Text
+                                  style={{
+                                    fontSize: 13,
+                                    fontWeight: "600",
+                                    color: "#FFFFFF",
+                                  }}
+                                >
                                   Convert to Project
                                 </Text>
                               </>
                             )}
                           </Pressable>
-                        ) : isConverted ? (
-                          <View className="flex-row items-center gap-1.5 rounded-[10px] border border-emerald-200 bg-emerald-50 px-3 py-2">
-                            <Ionicons
-                              name="checkmark-circle"
-                              size={16}
-                              color="#059669"
-                            />
-                            <Text className="text-[12px] font-bold text-emerald-700">
-                              Project Created
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
+                        </View>
+                      ) : isConverted ? (
+                        <View className="mt-3 flex-row items-center justify-center gap-1.5 rounded-[12px] border border-emerald-200 bg-emerald-50 py-2.5">
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={16}
+                            color="#059669"
+                          />
+                          <Text className="text-[13px] font-bold text-emerald-700">
+                            Project Created
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
                   </View>
                 );
               })
             )}
           </View>
-        )}
+        ) : activeTab === "overview" ? (
+          <QuoteOverviewTab selectors={quoteSelectors} />
+        ) : activeTab === "categories" ? (
+          <QuoteCategoriesTab />
+        ) : activeTab === "measurements" ? (
+          <QuoteMeasurementsTab />
+        ) : activeTab === "items" ? (
+          <QuoteWorkItemsTab />
+        ) : null}
       </ScrollView>
       </KeyboardAvoidingView>
 
@@ -1349,36 +1466,67 @@ ${companyName || "Finis"}`,
 
       <AddCustomQuoteItemModal
         visible={customItemModalVisible}
-        title={customTitle}
-        quantity={customQuantity}
-        categoryId={customCategoryId}
-        measurementType={customMeasurementType}
-        unitPrice={customUnitPrice}
-        categories={categoryOptions}
-        measurementTypes={measurementOptions}
+        plannedFloorNumbers={plannedFloorNumbers}
+        getPlannedUnitNames={getPlannedUnitNames}
         workItemSuggestions={workItemSuggestions}
-        onChangeTitle={setCustomTitle}
-        onChangeQuantity={setCustomQuantity}
-        onChangeCategoryId={setCustomCategoryId}
-        onChangeMeasurementType={setCustomMeasurementType}
-        onChangeUnitPrice={setCustomUnitPrice}
-        onSelectWorkItem={(item) => {
-          setCustomTitle(item.name);
-          if (item.category?.id) {
-            setCustomCategoryId(item.category.id);
-          }
-          if (item.measurementType) {
-            setCustomMeasurementType(item.measurementType);
-          }
-          const nextUnitPrice = Number((item as any).unitCost ?? (item as any).unitPrice ?? 0);
-          setCustomUnitPrice(String(nextUnitPrice));
-        }}
-        onClose={() => {
+        onClose={() => setCustomItemModalVisible(false)}
+        onAddService={(service) => {
+          setWorkGroups((current) =>
+            addCustomQuoteWorkItem(
+              current,
+              "custom-quotes",
+              "Custom Services",
+              `service-${Date.now()}`,
+              service.title,
+              String(service.quantity),
+              service.unit,
+              service.unitPrice,
+              {
+                description: service.description,
+                estimatedHours: service.estimatedHours,
+                selectedFloorNumbers: service.selectedFloorNumbers,
+                plannedLocationKeys: service.plannedLocationKeys,
+                locationMode:
+                  service.plannedLocationKeys.length > 0 ? "selected" : "all",
+                scopeChecklist: service.allowSubtasks
+                  ? ["Allow Subtasks"]
+                  : undefined,
+              },
+            ),
+          );
           setCustomItemModalVisible(false);
-          setIsEditMode(false);
+          toast.success("Service added to quote!");
         }}
-        onAdd={isEditMode ? handleSaveEditItem : handleAddCustomItem}
-        isEditMode={isEditMode}
+      />
+
+      {/* Edit Service Details and Location Scoping Modal */}
+      <EditQuoteItemModal
+        visible={editModalVisible}
+        title={editTitle}
+        quantity={editQuantity}
+        unit={editUnit}
+        unitPrice={editUnitPrice}
+        estimatedHours={editHours}
+        description={editDescription}
+        plannedFloorNumbers={plannedFloorNumbers}
+        getPlannedUnitNames={getPlannedUnitNames}
+        selectedFloorNumbers={editSelectedFloors}
+        plannedLocationKeys={editLocationKeys}
+        scopeChecklist={editChecklist}
+        onChangeTitle={setEditTitle}
+        onChangeQuantity={setEditQuantity}
+        onChangeUnit={setEditUnit}
+        onChangeUnitPrice={setEditUnitPrice}
+        onChangeEstimatedHours={setEditHours}
+        onChangeDescription={setEditDescription}
+        onChangeSelectedFloors={(floors, keys) => {
+          setEditSelectedFloors(floors);
+          setEditLocationKeys(keys);
+        }}
+        onChangePlannedLocationKeys={setEditLocationKeys}
+        onChangeScopeChecklist={setEditChecklist}
+        onClose={() => setEditModalVisible(false)}
+        onSave={handleSaveEditItem}
       />
     </SafeAreaView>
   );

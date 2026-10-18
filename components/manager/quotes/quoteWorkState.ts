@@ -131,6 +131,13 @@ export function updateQuoteWorkItemDetails(
     quantity: string;
     unit: string;
     unitPrice: string;
+    description?: string;
+    estimatedHours?: string;
+    scopeChecklist?: string[];
+    locationMode?: "all" | "selected";
+    selectedFloorNumbers?: number[];
+    selectedUnitNames?: string[];
+    plannedLocationKeys?: string[];
   },
 ): QuoteSelectedWorkGroup[] {
   const quantityValue = Number(updates.quantity) || 0;
@@ -151,6 +158,13 @@ export function updateQuoteWorkItemDetails(
                   unitOptions: [{ unit: nextUnit, price: unitPriceValue }],
                   selectedUnit: nextUnit,
                   selectedUnitPrice: unitPriceValue,
+                  description: updates.description !== undefined ? updates.description : item.description,
+                  estimatedHours: updates.estimatedHours !== undefined ? updates.estimatedHours : item.estimatedHours,
+                  scopeChecklist: updates.scopeChecklist !== undefined ? updates.scopeChecklist : item.scopeChecklist,
+                  locationMode: updates.locationMode !== undefined ? updates.locationMode : item.locationMode,
+                  selectedFloorNumbers: updates.selectedFloorNumbers !== undefined ? updates.selectedFloorNumbers : item.selectedFloorNumbers,
+                  selectedUnitNames: updates.selectedUnitNames !== undefined ? updates.selectedUnitNames : item.selectedUnitNames,
+                  plannedLocationKeys: updates.plannedLocationKeys !== undefined ? updates.plannedLocationKeys : item.plannedLocationKeys,
                 }
               : item,
           ),
@@ -168,6 +182,15 @@ export function addCustomQuoteWorkItem(
   customQuantity: string,
   customUnit: string,
   customUnitPrice: string,
+  extra?: {
+    description?: string;
+    estimatedHours?: string;
+    selectedFloorNumbers?: number[];
+    selectedUnitNames?: string[];
+    plannedLocationKeys?: string[];
+    scopeChecklist?: string[];
+    locationMode?: "all" | "selected";
+  },
 ): QuoteSelectedWorkGroup[] {
   const safeTitle = customTitle ?? "";
   const safeUnit = customUnit ?? "";
@@ -183,6 +206,17 @@ export function addCustomQuoteWorkItem(
     selectedUnitPrice: unitPriceValue,
     selected: true,
     isCustom: true,
+    description: extra?.description,
+    estimatedHours: extra?.estimatedHours,
+    selectedFloorNumbers: extra?.selectedFloorNumbers,
+    selectedUnitNames: extra?.selectedUnitNames,
+    plannedLocationKeys: extra?.plannedLocationKeys,
+    scopeChecklist: extra?.scopeChecklist,
+    locationMode:
+      extra?.locationMode ||
+      (extra?.plannedLocationKeys && extra.plannedLocationKeys.length > 0
+        ? "selected"
+        : "all"),
   };
   const targetGroup = groups.find((group) => group.id === groupId);
 
