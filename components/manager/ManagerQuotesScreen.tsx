@@ -1,4 +1,4 @@
-import React, { useMemo, useState , useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 
 import {
   ActivityIndicator,
@@ -399,8 +399,8 @@ export default function ManagerQuotesScreen() {
             estimatedHours: item.estimatedHours
               ? Number(item.estimatedHours)
               : estimatedTime
-              ? Number(estimatedTime) || undefined
-              : undefined,
+                ? Number(estimatedTime) || undefined
+                : undefined,
             sortOrder: index,
             scopeChecklist: item.scopeChecklist,
             locationMode:
@@ -452,17 +452,25 @@ export default function ManagerQuotesScreen() {
         tasks: selectedTasks,
       });
 
-      const pdfFile = await createQuotePdf(quoteParams);
-      const pdfName = `${createdQuote.quoteNumber || "quote"}.pdf`;
+      const resolvedQuoteNumber =
+        createdQuote?.quoteNumber ||
+        (createdQuote as any)?.quote?.quoteNumber ||
+        "";
+      const displayQuoteNumber = resolvedQuoteNumber || "Estimate";
+      const pdfFile = await createQuotePdf({
+        ...quoteParams,
+        quoteNumber: resolvedQuoteNumber || undefined,
+      });
+      const pdfName = `${resolvedQuoteNumber || "quote"}.pdf`;
 
       try {
         await sendManagerQuoteMail({
           clientEmail: resolvedEmail,
           clientName: clientName.trim(),
-          subject: `Quotation #${createdQuote.quoteNumber || "Estimate"}: ${projectName.trim()}`,
+          subject: `Quotation #${displayQuoteNumber}: ${projectName.trim()}`,
           body: `Dear ${clientName.trim()},
 
-Please find attached your official quotation (${createdQuote.quoteNumber || "Estimate"}) for ${projectName.trim()}.
+Please find attached your official quotation (${displayQuoteNumber}) for ${projectName.trim()}.
 
 Project: ${projectName.trim()}
 Address: ${projectAddress.trim()}
@@ -484,13 +492,17 @@ ${companyName || "Finis"}`,
       void queryClient.invalidateQueries({ queryKey: ["admin", "quote-estimates"] });
 
       setCurrentPreviewDocument({
-        id: createdQuote.id || `quote-preview-${Date.now()}`,
+        id: createdQuote?.id || (createdQuote as any)?.quote?.id || `quote-preview-${Date.now()}`,
         name: pdfName,
         uri: pdfFile.uri,
         mimeType: "application/pdf",
       });
       router.push("/screens/company/documentpreview");
-      toast.success(`Quote #${createdQuote.quoteNumber} created and sent!`);
+      toast.success(
+        resolvedQuoteNumber
+          ? `Quote #${resolvedQuoteNumber} created and sent!`
+          : "Quote created and sent!"
+      );
     } catch (error: any) {
       console.error("Quote creation error:", error);
       toast.error(error?.message || "Unable to generate and send the quote right now.");
@@ -519,27 +531,27 @@ ${companyName || "Finis"}`,
 
     const addQuoteRequest = customCategoryId
       ? quickAddQuoteWorkItem({
-          categoryId: customCategoryId,
-          projectType: projectType.toLowerCase(),
-          propertyType: propertyType.toLowerCase(),
-          unitType: unitType.toLowerCase(),
-          name: customTitle.trim(),
-          measurementType: customMeasurementType,
-          quantity: nextQuantity,
-          unitCost: nextUnitPrice,
-          notes: "",
-        }).then((createdQuote) => createdQuote.quote)
+        categoryId: customCategoryId,
+        projectType: projectType.toLowerCase(),
+        propertyType: propertyType.toLowerCase(),
+        unitType: unitType.toLowerCase(),
+        name: customTitle.trim(),
+        measurementType: customMeasurementType,
+        quantity: nextQuantity,
+        unitCost: nextUnitPrice,
+        notes: "",
+      }).then((createdQuote) => createdQuote.quote)
       : createManagerQuote({
-          projectType: projectType.toLowerCase(),
-          propertyType: propertyType.toLowerCase(),
-          unitType: unitType.toLowerCase(),
-          title: customTitle.trim(),
-          quantity: nextQuantity,
-          unit: customMeasurementType,
-          unitPrice: nextUnitPrice,
-          notes: "",
-          isCustom: true,
-        });
+        projectType: projectType.toLowerCase(),
+        propertyType: propertyType.toLowerCase(),
+        unitType: unitType.toLowerCase(),
+        title: customTitle.trim(),
+        quantity: nextQuantity,
+        unit: customMeasurementType,
+        unitPrice: nextUnitPrice,
+        notes: "",
+        isCustom: true,
+      });
 
     addQuoteRequest
       .then((createdQuote) => {
@@ -597,8 +609,8 @@ ${companyName || "Finis"}`,
       currentItem.selectedFloorNumbers && currentItem.selectedFloorNumbers.length > 0
         ? currentItem.selectedFloorNumbers
         : plannedFloorNumbers.length > 0
-        ? [...plannedFloorNumbers]
-        : [],
+          ? [...plannedFloorNumbers]
+          : [],
     );
     setEditLocationKeys(currentItem.plannedLocationKeys || []);
     setEditChecklist(currentItem.scopeChecklist || []);
@@ -692,7 +704,7 @@ ${companyName || "Finis"}`,
   };
 
   return (
-    <SafeAreaView edges={['top','left',"right"]} className="flex-1 bg-[#E9EDF1]">
+    <SafeAreaView edges={['top', 'left', "right"]} className="flex-1 bg-[#E9EDF1]">
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
@@ -714,643 +726,666 @@ ${companyName || "Finis"}`,
             />
           }
         >
-        <View className="px-5 pt-5">
-          <Text className="text-center text-[18px] font-semibold text-[#2B2B2B]">
-            Quotes
-          </Text>
-        </View>
+          <View className="px-5 pt-5">
+            <Text className="text-center text-[18px] font-semibold text-[#2B2B2B]">
+              Quotes
+            </Text>
+          </View>
 
-        {/* 6-Tab Horizontal Navigation Bar */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="mx-5 mt-4"
-          contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
-        >
-          {[
-            { id: "builder" as const, label: "Quote Builder", icon: "construct-outline" as const },
-            { id: "overview" as const, label: "Selector Guide", icon: "sparkles-outline" as const },
-            {
-              id: "quotes" as const,
-              label: "All Quotes",
-              icon: "document-text-outline" as const,
-              count: quoteEstimatesList.length,
-            },
-            {
-              id: "categories" as const,
-              label: "Categories",
-              icon: "pricetags-outline" as const,
-              count: (quoteCategoriesQuery.data || []).length,
-            },
-            {
-              id: "measurements" as const,
-              label: "Measurements",
-              icon: "speedometer-outline" as const,
-              count: (quoteSelectors?.measurementTypes || []).length,
-            },
-            { id: "items" as const, label: "Work Items", icon: "layers-outline" as const },
-          ].map((tab) => {
-            const isSelected = activeTab === tab.id;
-            return (
-              <Pressable
-                key={tab.id}
-                onPress={() => {
-                  setActiveTab(tab.id);
-                  if (tab.id === "quotes") void quoteEstimatesQuery.refetch();
-                }}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  borderRadius: 14,
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  backgroundColor: isSelected ? "#1F5577" : "#FFFFFF",
-                  borderWidth: 1,
-                  borderColor: isSelected ? "#1F5577" : "#D7E0E8",
-                  elevation: isSelected ? 2 : 0,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: isSelected ? 0.15 : 0,
-                  shadowRadius: 2,
-                }}
-              >
-                <Ionicons
-                  name={tab.icon}
-                  size={15}
-                  color={isSelected ? "#FFFFFF" : "#64748B"}
-                />
-                <Text
+          {/* 6-Tab Horizontal Navigation Bar */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="mx-5 mt-4"
+            contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
+          >
+            {[
+              { id: "builder" as const, label: "Quote Builder", icon: "construct-outline" as const },
+              { id: "overview" as const, label: "Selector Guide", icon: "sparkles-outline" as const },
+              {
+                id: "quotes" as const,
+                label: "All Quotes",
+                icon: "document-text-outline" as const,
+                count: quoteEstimatesList.length,
+              },
+              {
+                id: "categories" as const,
+                label: "Categories",
+                icon: "pricetags-outline" as const,
+                count: (quoteCategoriesQuery.data || []).length,
+              },
+              {
+                id: "measurements" as const,
+                label: "Measurements",
+                icon: "speedometer-outline" as const,
+                count: (quoteSelectors?.measurementTypes || []).length,
+              },
+              { id: "items" as const, label: "Work Items", icon: "layers-outline" as const },
+            ].map((tab) => {
+              const isSelected = activeTab === tab.id;
+              return (
+                <Pressable
+                  key={tab.id}
+                  onPress={() => {
+                    setActiveTab(tab.id);
+                    if (tab.id === "quotes") void quoteEstimatesQuery.refetch();
+                  }}
                   style={{
-                    fontSize: 13,
-                    fontWeight: "600",
-                    color: isSelected ? "#FFFFFF" : "#64748B",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    borderRadius: 14,
+                    paddingHorizontal: 16,
+                    paddingVertical: 10,
+                    backgroundColor: isSelected ? "#1F5577" : "#FFFFFF",
+                    borderWidth: 1,
+                    borderColor: isSelected ? "#1F5577" : "#D7E0E8",
+                    elevation: isSelected ? 2 : 0,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: isSelected ? 0.15 : 0,
+                    shadowRadius: 2,
                   }}
                 >
-                  {tab.label}
-                </Text>
-                {tab.count !== undefined && tab.count > 0 && (
-                  <View
+                  <Ionicons
+                    name={tab.icon}
+                    size={15}
+                    color={isSelected ? "#FFFFFF" : "#64748B"}
+                  />
+                  <Text
                     style={{
-                      borderRadius: 9999,
-                      paddingHorizontal: 7,
-                      paddingVertical: 1.5,
-                      backgroundColor: isSelected ? "rgba(255,255,255,0.25)" : "#E2E8F0",
+                      fontSize: 13,
+                      fontWeight: "600",
+                      color: isSelected ? "#FFFFFF" : "#64748B",
                     }}
                   >
-                    <Text
+                    {tab.label}
+                  </Text>
+                  {tab.count !== undefined && tab.count > 0 && (
+                    <View
                       style={{
-                        fontSize: 11,
-                        fontWeight: "700",
-                        color: isSelected ? "#FFFFFF" : "#475569",
+                        borderRadius: 9999,
+                        paddingHorizontal: 7,
+                        paddingVertical: 1.5,
+                        backgroundColor: isSelected ? "rgba(255,255,255,0.25)" : "#E2E8F0",
                       }}
                     >
-                      {tab.count}
-                    </Text>
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: "700",
+                          color: isSelected ? "#FFFFFF" : "#475569",
+                        }}
+                      >
+                        {tab.count}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
 
-        {activeTab === "builder" ? (
-          <View className="mt-6 px-5">
-            <View className="rounded-[20px] border border-[#D7E0E8] bg-white px-5 py-5 shadow-sm">
-              <Text className="text-[18px] font-semibold text-[#1F2937]">
-                Construction Quote Builder
-              </Text>
-              <View className="mt-5">
-                <QuoteStepIndicator currentStep={step} totalSteps={3} />
+          {activeTab === "builder" ? (
+            <View className="mt-6 px-5">
+              <View className="rounded-[20px] border border-[#D7E0E8] bg-white px-5 py-5 shadow-sm">
+                <Text className="text-[18px] font-semibold text-[#1F2937]">
+                  Construction Quote Builder
+                </Text>
+                <View className="mt-5">
+                  <QuoteStepIndicator currentStep={step} totalSteps={3} />
+                </View>
               </View>
+
+              {step === 1 ? (
+                <QuoteBuilderForm
+                  companyName={companyName}
+                  companyId={companyId}
+                  isCompaniesLoading={companiesQuery.isLoading}
+                  onOpenCompanyPicker={() => {
+                    void companiesQuery.refetch();
+                    setCompanySheetVisible(true);
+                  }}
+                  projectName={projectName}
+                  setProjectName={setProjectName}
+                  clientName={clientName}
+                  setClientName={setClientName}
+                  projectAddress={projectAddress}
+                  setProjectAddress={setProjectAddress}
+                  phoneNumber={phoneNumber}
+                  setPhoneNumber={setPhoneNumber}
+                  email={email}
+                  setEmail={setEmail}
+                  defaultClientName={defaultClientName}
+                  defaultPhone={defaultPhone}
+                  defaultEmail={defaultEmail}
+                  estimatedTime={estimatedTime}
+                  setEstimatedTime={setEstimatedTime}
+                  startDate={startDate}
+                  setStartDate={setStartDate}
+                  endDate={endDate}
+                  setEndDate={setEndDate}
+                  floorsCount={floorsCount}
+                  setFloorsCount={setFloorsCount}
+                  unitsPerFloor={unitsPerFloor}
+                  setUnitsPerFloor={setUnitsPerFloor}
+                  floorStart={floorStart}
+                  setFloorStart={setFloorStart}
+                  floorEnd={floorEnd}
+                  setFloorEnd={setFloorEnd}
+                  unitStart={unitStart}
+                  setUnitStart={setUnitStart}
+                  unitEnd={unitEnd}
+                  setUnitEnd={setUnitEnd}
+                  projectType={projectType}
+                  setProjectType={(value) =>
+                    syncCombination(value, propertyType, unitType)
+                  }
+                  propertyType={propertyType}
+                  setPropertyType={(value) =>
+                    syncCombination(projectType, value, unitType)
+                  }
+                  unitType={unitType}
+                  setUnitType={(value) =>
+                    syncCombination(projectType, propertyType, value)
+                  }
+                  onNext={() => {
+                    if (!companyId) {
+                      toast.error("Company is required.");
+                      return;
+                    }
+                    if (!projectName.trim()) {
+                      toast.error("Project name is required.");
+                      return;
+                    }
+                    if (!clientName.trim() && !defaultClientName) {
+                      toast.error("Client name is required.");
+                      return;
+                    }
+                    if (!projectAddress.trim()) {
+                      toast.error("Project address is required.");
+                      return;
+                    }
+                    setStep(2);
+                  }}
+                />
+              ) : step === 2 ? (
+                <QuoteWorkItemsStep
+                  catalogTitle={
+                    quoteCatalogGroups.length
+                      ? "Work Item Categories"
+                      : "No Work Item Categories"
+                  }
+                  catalogDescription={
+                    quoteCatalogGroups.length
+                      ? "These category groups are loaded from the server."
+                      : "No work items returned from the backend for this combination."
+                  }
+                  groups={workGroups}
+                  subtotal={subtotal}
+                  itemsSelected={itemsSelected}
+                  estimatedTotal={subtotal}
+                  estimatedTime={estimatedTime}
+                  onChangeEstimatedTime={setEstimatedTime}
+                  onAddCustomItem={() => setCustomItemModalVisible(true)}
+                  onToggleGroup={(groupId) =>
+                    setWorkGroups((current) =>
+                      toggleQuoteWorkGroup(current, groupId),
+                    )
+                  }
+                  onToggleItem={(groupId, itemId) =>
+                    setWorkGroups((current) =>
+                      toggleQuoteWorkItem(current, groupId, itemId),
+                    )
+                  }
+                  onEditItem={handleOpenEditItem}
+                  onDeleteItem={handleDeleteItem}
+                  onChangeItemQuantity={(groupId, itemId, value) =>
+                    setWorkGroups((current) =>
+                      updateQuoteWorkItemQuantity(current, groupId, itemId, value),
+                    )
+                  }
+                  onSelectItemUnit={(groupId, itemId, unit) =>
+                    setWorkGroups((current) =>
+                      updateQuoteWorkItemUnit(current, groupId, itemId, unit),
+                    )
+                  }
+                  onBack={() => setStep(1)}
+                  onNext={() => setStep(3)}
+                />
+              ) : (
+                <QuoteFinalReviewStep
+                  clientName={clientName || defaultClientName}
+                  companyName={companyName}
+                  projectName={projectName}
+                  email={email || defaultEmail}
+                  phoneNumber={phoneNumber || defaultPhone}
+                  projectAddress={projectAddress}
+                  projectType={projectType}
+                  propertyType={propertyType}
+                  unitType={unitType}
+                  estimatedTime={estimatedTime}
+                  startDate={startDate}
+                  endDate={endDate}
+                  floorsCount={floorsCount}
+                  unitsPerFloor={unitsPerFloor}
+                  floorStart={floorStart}
+                  floorEnd={floorEnd}
+                  unitStart={unitStart}
+                  unitEnd={unitEnd}
+                  workGroups={workGroups}
+                  subtotal={subtotal}
+                  itemsSelected={itemsSelected}
+                  discountAmount={discountAmount}
+                  finalTotal={finalTotal}
+                  validUntilLabel={validUntilLabel}
+                  projectDetailsLabel={projectDetailsLabel}
+                  projectMetaLabel={projectMetaLabel}
+                  onEditSummary={() => setStep(1)}
+                  onEditWorkItems={() => setStep(2)}
+                  onOpenDiscount={() => {
+                    setDiscountPercentInput(String(appliedDiscountPercent || 0));
+                    setDiscountModalVisible(true);
+                  }}
+                  onGeneratePdf={handleGeneratePdf}
+                  onEmailQuote={handleGeneratePdf}
+                  isGenerating={isGeneratingQuote}
+                />
+              )}
             </View>
-
-            {step === 1 ? (
-              <QuoteBuilderForm
-                companyName={companyName}
-                companyId={companyId}
-                isCompaniesLoading={companiesQuery.isLoading}
-                onOpenCompanyPicker={() => {
-                  void companiesQuery.refetch();
-                  setCompanySheetVisible(true);
-                }}
-                projectName={projectName}
-                setProjectName={setProjectName}
-                clientName={clientName}
-                setClientName={setClientName}
-                projectAddress={projectAddress}
-                setProjectAddress={setProjectAddress}
-                phoneNumber={phoneNumber}
-                setPhoneNumber={setPhoneNumber}
-                email={email}
-                setEmail={setEmail}
-                defaultClientName={defaultClientName}
-                defaultPhone={defaultPhone}
-                defaultEmail={defaultEmail}
-                estimatedTime={estimatedTime}
-                setEstimatedTime={setEstimatedTime}
-                startDate={startDate}
-                setStartDate={setStartDate}
-                endDate={endDate}
-                setEndDate={setEndDate}
-                floorsCount={floorsCount}
-                setFloorsCount={setFloorsCount}
-                unitsPerFloor={unitsPerFloor}
-                setUnitsPerFloor={setUnitsPerFloor}
-                floorStart={floorStart}
-                setFloorStart={setFloorStart}
-                floorEnd={floorEnd}
-                setFloorEnd={setFloorEnd}
-                unitStart={unitStart}
-                setUnitStart={setUnitStart}
-                unitEnd={unitEnd}
-                setUnitEnd={setUnitEnd}
-                projectType={projectType}
-                setProjectType={(value) =>
-                  syncCombination(value, propertyType, unitType)
-                }
-                propertyType={propertyType}
-                setPropertyType={(value) =>
-                  syncCombination(projectType, value, unitType)
-                }
-                unitType={unitType}
-                setUnitType={(value) =>
-                  syncCombination(projectType, propertyType, value)
-                }
-                onNext={() => {
-                  if (!companyId) {
-                    toast.error("Company is required.");
-                    return;
-                  }
-                  if (!projectName.trim()) {
-                    toast.error("Project name is required.");
-                    return;
-                  }
-                  if (!clientName.trim() && !defaultClientName) {
-                    toast.error("Client name is required.");
-                    return;
-                  }
-                  if (!projectAddress.trim()) {
-                    toast.error("Project address is required.");
-                    return;
-                  }
-                  setStep(2);
-                }}
-              />
-            ) : step === 2 ? (
-              <QuoteWorkItemsStep
-                catalogTitle={
-                  quoteCatalogGroups.length
-                    ? "Work Item Categories"
-                    : "No Work Item Categories"
-                }
-                catalogDescription={
-                  quoteCatalogGroups.length
-                    ? "These category groups are loaded from the server."
-                    : "No work items returned from the backend for this combination."
-                }
-                groups={workGroups}
-                subtotal={subtotal}
-                itemsSelected={itemsSelected}
-                estimatedTotal={subtotal}
-                estimatedTime={estimatedTime}
-                onChangeEstimatedTime={setEstimatedTime}
-                onAddCustomItem={() => setCustomItemModalVisible(true)}
-                onToggleGroup={(groupId) =>
-                  setWorkGroups((current) =>
-                    toggleQuoteWorkGroup(current, groupId),
-                  )
-                }
-                onToggleItem={(groupId, itemId) =>
-                  setWorkGroups((current) =>
-                    toggleQuoteWorkItem(current, groupId, itemId),
-                  )
-                }
-                onEditItem={handleOpenEditItem}
-                onDeleteItem={handleDeleteItem}
-                onChangeItemQuantity={(groupId, itemId, value) =>
-                  setWorkGroups((current) =>
-                    updateQuoteWorkItemQuantity(current, groupId, itemId, value),
-                  )
-                }
-                onSelectItemUnit={(groupId, itemId, unit) =>
-                  setWorkGroups((current) =>
-                    updateQuoteWorkItemUnit(current, groupId, itemId, unit),
-                  )
-                }
-                onBack={() => setStep(1)}
-                onNext={() => setStep(3)}
-              />
-            ) : (
-              <QuoteFinalReviewStep
-                clientName={clientName || defaultClientName}
-                companyName={companyName}
-                projectName={projectName}
-                email={email || defaultEmail}
-                phoneNumber={phoneNumber || defaultPhone}
-                projectAddress={projectAddress}
-                projectType={projectType}
-                propertyType={propertyType}
-                unitType={unitType}
-                estimatedTime={estimatedTime}
-                startDate={startDate}
-                endDate={endDate}
-                floorsCount={floorsCount}
-                unitsPerFloor={unitsPerFloor}
-                floorStart={floorStart}
-                floorEnd={floorEnd}
-                unitStart={unitStart}
-                unitEnd={unitEnd}
-                workGroups={workGroups}
-                subtotal={subtotal}
-                itemsSelected={itemsSelected}
-                discountAmount={discountAmount}
-                finalTotal={finalTotal}
-                validUntilLabel={validUntilLabel}
-                projectDetailsLabel={projectDetailsLabel}
-                projectMetaLabel={projectMetaLabel}
-                onEditSummary={() => setStep(1)}
-                onEditWorkItems={() => setStep(2)}
-                onOpenDiscount={() => {
-                  setDiscountPercentInput(String(appliedDiscountPercent || 0));
-                  setDiscountModalVisible(true);
-                }}
-                onGeneratePdf={handleGeneratePdf}
-                onEmailQuote={handleGeneratePdf}
-                isGenerating={isGeneratingQuote}
-              />
-            )}
-          </View>
-        ) : activeTab === "quotes" ? (
-          <View className="mt-5 px-5">
-            {/* Header with New Quote Button */}
-            <View className="mb-4 flex-row items-center justify-between gap-3">
-              <View className="flex-1 pr-2">
-                <Text className="text-[18px] font-bold text-[#1F2937]">
-                  Quote Estimates
-                </Text>
-                <Text className="mt-0.5 text-[12px] text-[#64748B]">
-                  Manage estimates and convert accepted quotes to projects
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => {
-                  setActiveTab("builder");
-                  setStep(1);
-                }}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
-                  borderRadius: 12,
-                  backgroundColor: "#1F5577",
-                  paddingHorizontal: 12,
-                  paddingVertical: 9,
-                  flexShrink: 0,
-                }}
-              >
-                <Ionicons name="add" size={16} color="#FFFFFF" />
-                <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF" }}>
-                  New Quote
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* Status Filter Chips */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              className="mb-4"
-              contentContainerStyle={{ gap: 8 }}
-            >
-              {[
-                { id: "all", label: "All" },
-                { id: "draft", label: "Draft" },
-                { id: "sent", label: "Sent" },
-                { id: "accepted", label: "Accepted" },
-                { id: "converted", label: "Converted" },
-              ].map((chip) => {
-                const isSelected = selectedStatusFilter === chip.id;
-                return (
-                  <Pressable
-                    key={chip.id}
-                    onPress={() => setSelectedStatusFilter(chip.id)}
-                    style={{
-                      borderRadius: 9999,
-                      paddingHorizontal: 16,
-                      paddingVertical: 8,
-                      borderWidth: 1,
-                      borderColor: isSelected ? "#1F5577" : "#D7E0E8",
-                      backgroundColor: isSelected ? "#1F5577" : "#FFFFFF",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "600",
-                        color: isSelected ? "#FFFFFF" : "#64748B",
-                      }}
-                    >
-                      {chip.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            {/* Quote Estimates List */}
-            {quoteEstimatesQuery.isLoading ? (
-              <View className="items-center justify-center py-16">
-                <ActivityIndicator size="large" color="#1F5577" />
-                <Text className="mt-3 text-[14px] text-[#64748B]">
-                  Loading quotes...
-                </Text>
-              </View>
-            ) : filteredQuoteEstimates.length === 0 ? (
-              <View className="items-center justify-center rounded-[20px] border border-dashed border-[#CBD5E1] bg-white px-6 py-12">
-                <Ionicons name="document-text-outline" size={48} color="#94A3B8" />
-                <Text className="mt-3 text-[16px] font-bold text-[#1F2937]">
-                  No Quotes Found
-                </Text>
-                <Text className="mt-1 text-center text-[13px] text-[#64748B]">
-                  {selectedStatusFilter === "all"
-                    ? "You haven't created any quote estimates yet. Tap below to start building one."
-                    : `No quote estimates currently match the "${selectedStatusFilter}" status.`}
-                </Text>
-                <TouchableOpacity
-                  activeOpacity={0.85}
+          ) : activeTab === "quotes" ? (
+            <View className="mt-5 px-5">
+              {/* Header with New Quote Button */}
+              <View className="mb-4 flex-row items-center justify-between gap-3">
+                <View className="flex-1 pr-2">
+                  <Text className="text-[18px] font-bold text-[#1F2937]">
+                    Quote Estimates
+                  </Text>
+                  <Text className="mt-0.5 text-[12px] text-[#64748B]">
+                    Manage estimates and convert accepted quotes to projects
+                  </Text>
+                </View>
+                <Pressable
                   onPress={() => {
-                    setSelectedStatusFilter("all");
                     setActiveTab("builder");
                     setStep(1);
                   }}
-                  className="mt-5 flex-row items-center gap-2 rounded-[12px] bg-[#1F5577] px-5 py-3"
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    borderRadius: 12,
+                    backgroundColor: "#1F5577",
+                    paddingHorizontal: 12,
+                    paddingVertical: 9,
+                    flexShrink: 0,
+                  }}
                 >
-                  <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-                  <Text className="text-[14px] font-semibold text-white">
-                    Create New Quote
+                  <Ionicons name="add" size={16} color="#FFFFFF" />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF" }}>
+                    New Quote
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
-            ) : (
-              filteredQuoteEstimates.map((quote: QuoteEstimateResponse) => {
-                const isConverting = isConvertingId === quote.id;
-                const isSending = isSendingId === quote.id;
-                const isConverted = quote.status === "converted";
-                const isAccepted = quote.status === "accepted";
-                const isSent = quote.status === "sent";
 
-                return (
-                  <View
-                    key={quote.id}
-                    className="mb-4 rounded-[20px] border border-[#D7E0E8] bg-white p-5 shadow-sm"
+              {/* Status Filter Chips */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="mb-4"
+                contentContainerStyle={{ gap: 8 }}
+              >
+                {[
+                  { id: "all", label: "All" },
+                  { id: "draft", label: "Draft" },
+                  { id: "sent", label: "Sent" },
+                  { id: "accepted", label: "Accepted" },
+                  { id: "converted", label: "Converted" },
+                ].map((chip) => {
+                  const isSelected = selectedStatusFilter === chip.id;
+                  return (
+                    <Pressable
+                      key={chip.id}
+                      onPress={() => setSelectedStatusFilter(chip.id)}
+                      style={{
+                        borderRadius: 9999,
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        borderWidth: 1,
+                        borderColor: isSelected ? "#1F5577" : "#D7E0E8",
+                        backgroundColor: isSelected ? "#1F5577" : "#FFFFFF",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: isSelected ? "#FFFFFF" : "#64748B",
+                        }}
+                      >
+                        {chip.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Quote Estimates List */}
+              {quoteEstimatesQuery.isLoading ? (
+                <View className="items-center justify-center py-16">
+                  <ActivityIndicator size="large" color="#1F5577" />
+                  <Text className="mt-3 text-[14px] text-[#64748B]">
+                    Loading quotes...
+                  </Text>
+                </View>
+              ) : filteredQuoteEstimates.length === 0 ? (
+                <View className="items-center justify-center rounded-[20px] border border-dashed border-[#CBD5E1] bg-white px-6 py-12">
+                  <Ionicons name="document-text-outline" size={48} color="#94A3B8" />
+                  <Text className="mt-3 text-[16px] font-bold text-[#1F2937]">
+                    No Quotes Found
+                  </Text>
+                  <Text className="mt-1 text-center text-[13px] text-[#64748B]">
+                    {selectedStatusFilter === "all"
+                      ? "You haven't created any quote estimates yet. Tap below to start building one."
+                      : `No quote estimates currently match the "${selectedStatusFilter}" status.`}
+                  </Text>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      setSelectedStatusFilter("all");
+                      setActiveTab("builder");
+                      setStep(1);
+                    }}
+                    className="mt-5 flex-row items-center gap-2 rounded-[12px] bg-[#1F5577] px-5 py-3"
                   >
-                    <View className="flex-row items-start justify-between">
-                      <View className="flex-1 pr-3">
-                        <View className="flex-row items-center gap-2">
-                          <Text className="text-[12px] font-bold uppercase tracking-wider text-[#1F5577]">
+                    <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+                    <Text className="text-[14px] font-semibold text-white">
+                      Create New Quote
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                filteredQuoteEstimates.map((quote: QuoteEstimateResponse) => {
+                  const isConverting = isConvertingId === quote.id;
+                  const isSending = isSendingId === quote.id;
+                  const isConverted = quote.status === "converted";
+                  const isAccepted = quote.status === "accepted";
+                  const isSent = quote.status === "sent";
+
+                  const resolvedCompanyName =
+                    quote.company?.name ||
+                    (quote.companyId === selectedCompany?.id
+                      ? selectedCompany?.name
+                      : null);
+
+                  return (
+                    <View
+                      key={quote.id}
+                      className="mb-4 rounded-[20px] border border-[#D7E0E8] bg-white p-5 shadow-sm overflow-hidden"
+                    >
+                      <View className="flex-row items-start justify-between gap-2">
+                        <View className="flex-1 min-w-0 pr-1">
+                          <Text
+                            className="text-[12px] font-bold uppercase tracking-wider text-[#1F5577]"
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
                             #{quote.quoteNumber || "QUOTE"}
                           </Text>
-                          {quote.company?.name && (
+                          <Text
+                            className="mt-1 text-[17px] font-bold text-[#1F2937]"
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
+                            {quote.projectName}
+                          </Text>
+                          {resolvedCompanyName && (
                             <Text
-                              className="text-[12px] text-[#64748B]"
+                              className="mt-0.5 text-[13px] text-[#64748B]"
                               numberOfLines={1}
+                              ellipsizeMode="tail"
                             >
-                              • {quote.company.name}
+                              Company:{" "}
+                              <Text className="font-semibold text-[#1F5577]">
+                                {resolvedCompanyName}
+                              </Text>
                             </Text>
                           )}
-                        </View>
-                        <Text className="mt-1 text-[17px] font-bold text-[#1F2937]">
-                          {quote.projectName}
-                        </Text>
-                        <Text className="mt-0.5 text-[13px] text-[#64748B]">
-                          Client:{" "}
-                          <Text className="font-semibold text-[#334155]">
-                            {quote.clientName}
-                          </Text>
-                        </Text>
-                      </View>
-
-                      {/* Status Badge */}
-                      <View
-                        className={`rounded-full px-3 py-1 border ${
-                          isConverted
-                            ? "bg-emerald-50 border-emerald-200"
-                            : isAccepted
-                            ? "bg-blue-50 border-blue-200"
-                            : isSent
-                            ? "bg-amber-50 border-amber-200"
-                            : "bg-slate-100 border-slate-200"
-                        }`}
-                      >
-                        <Text
-                          className={`text-[11px] font-bold uppercase tracking-wider ${
-                            isConverted
-                              ? "text-emerald-700"
-                              : isAccepted
-                              ? "text-blue-700"
-                              : isSent
-                              ? "text-amber-700"
-                              : "text-slate-600"
-                          }`}
-                        >
-                          {quote.status}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Scope Details */}
-                    <View className="mt-3.5 rounded-[12px] border border-[#E2E8F0] bg-[#F8FAFC] p-3">
-                      <View className="flex-row items-center justify-between">
-                        <View className="flex-row items-center gap-1.5">
-                          <Ionicons
-                            name="business-outline"
-                            size={14}
-                            color="#64748B"
-                          />
-                          <Text className="text-[12px] capitalize text-[#475569]">
-                            {(quote.projectType || "").replace(/_/g, " ")} •{" "}
-                            {(quote.propertyType || "").replace(/_/g, " ")}
-                          </Text>
-                        </View>
-                        <View className="flex-row items-center gap-1.5">
-                          <Ionicons
-                            name="layers-outline"
-                            size={14}
-                            color="#64748B"
-                          />
-                          <Text className="text-[12px] text-[#475569]">
-                            {quote.floorsCount ?? 0} floors •{" "}
-                            {quote.unitsPerFloor ?? 0} units
-                          </Text>
-                        </View>
-                      </View>
-
-                      {quote.projectAddress && (
-                        <View className="mt-2 flex-row items-center gap-1.5">
-                          <Ionicons
-                            name="location-outline"
-                            size={14}
-                            color="#64748B"
-                          />
                           <Text
-                            className="flex-1 text-[12px] text-[#64748B]"
+                            className="mt-0.5 text-[13px] text-[#64748B]"
                             numberOfLines={1}
+                            ellipsizeMode="tail"
                           >
-                            {quote.projectAddress}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-
-                    {/* Pricing & Actions */}
-                    <View className="mt-4 border-t border-[#F1F5F9] pt-3">
-                      {/* Top Row: Items count + Total Price on left, Delete button on right */}
-                      <View className="flex-row items-center justify-between">
-                        <View>
-                          <Text className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">
-                            Items ({quote.tasks?.length ?? 0})
-                          </Text>
-                          <Text className="mt-0.5 text-[18px] font-black text-[#1F5577]">
-                            {formatCurrency(Number(quote.totalAmount || 0))}
+                            Client:{" "}
+                            <Text className="font-semibold text-[#334155]">
+                              {quote.clientName}
+                            </Text>
                           </Text>
                         </View>
 
-                        {/* Delete Estimate Button - safely positioned inside card */}
-                        <TouchableOpacity
-                          activeOpacity={0.8}
-                          onPress={() => handleDeleteEstimate(quote)}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          style={{
-                            width: 36,
-                            height: 36,
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderRadius: 10,
-                            borderWidth: 1,
-                            borderColor: "#FECACA",
-                            backgroundColor: "#FEF2F2",
-                          }}
+                        {/* Status Badge */}
+                        <View
+                          style={{ flexShrink: 0 }}
+                          className={`rounded-full px-3 py-1 border ${isConverted
+                              ? "bg-emerald-50 border-emerald-200"
+                              : isAccepted
+                                ? "bg-blue-50 border-blue-200"
+                                : isSent
+                                  ? "bg-amber-50 border-amber-200"
+                                  : "bg-slate-100 border-slate-200"
+                            }`}
                         >
-                          <Ionicons name="trash-outline" size={16} color="#DC2626" />
-                        </TouchableOpacity>
+                          <Text
+                            className={`text-[11px] font-bold uppercase tracking-wider ${isConverted
+                                ? "text-emerald-700"
+                                : isAccepted
+                                  ? "text-blue-700"
+                                  : isSent
+                                    ? "text-amber-700"
+                                    : "text-slate-600"
+                              }`}
+                          >
+                            {quote.status}
+                          </Text>
+                        </View>
                       </View>
 
-                      {/* Bottom Row: Actions (Send, Convert to Project or Project Created) */}
-                      {!isConverted &&
-                      quote.status !== "rejected" &&
-                      quote.status !== "cancelled" ? (
-                        <View className="mt-3 flex-row gap-2.5">
-                          <Pressable
-                            onPress={() => handleSendEstimate(quote)}
-                            disabled={isSending}
+                      {/* Scope Details */}
+                      <View className="mt-3.5 rounded-[12px] border border-[#E2E8F0] bg-[#F8FAFC] p-3">
+                        <View className="flex-row items-center justify-between gap-2">
+                          <View className="flex-1 flex-row items-center gap-1.5 min-w-0">
+                            <Ionicons
+                              name="business-outline"
+                              size={14}
+                              color="#64748B"
+                            />
+                            <Text
+                              className="flex-1 text-[12px] capitalize text-[#475569]"
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
+                              {(quote.projectType || "").replace(/_/g, " ")} •{" "}
+                              {(quote.propertyType || "").replace(/_/g, " ")}
+                            </Text>
+                          </View>
+                          <View style={{ flexShrink: 0 }} className="flex-row items-center gap-1.5">
+                            <Ionicons
+                              name="layers-outline"
+                              size={14}
+                              color="#64748B"
+                            />
+                            <Text className="text-[12px] text-[#475569]">
+                              {quote.floorsCount ?? 0} floors •{" "}
+                              {quote.unitsPerFloor ?? 0} units
+                            </Text>
+                          </View>
+                        </View>
+
+                        {quote.projectAddress && (
+                          <View className="mt-2 flex-row items-center gap-1.5">
+                            <Ionicons
+                              name="location-outline"
+                              size={14}
+                              color="#64748B"
+                            />
+                            <Text
+                              className="flex-1 text-[12px] text-[#64748B]"
+                              numberOfLines={1}
+                            >
+                              {quote.projectAddress}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Pricing & Actions */}
+                      <View className="mt-4 border-t border-[#F1F5F9] pt-3">
+                        {/* Top Row: Items count + Total Price on left, Delete button on right */}
+                        <View className="flex-row items-center justify-between">
+                          <View>
+                            <Text className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">
+                              Items ({quote.tasks?.length ?? 0})
+                            </Text>
+                            <Text className="mt-0.5 text-[18px] font-black text-[#1F5577]">
+                              {formatCurrency(Number(quote.totalAmount || 0))}
+                            </Text>
+                          </View>
+
+                          {/* Delete Estimate Button - safely positioned inside card */}
+                          <TouchableOpacity
+                            activeOpacity={0.8}
+                            onPress={() => handleDeleteEstimate(quote)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             style={{
-                              flex: 1,
-                              flexDirection: "row",
+                              width: 36,
+                              height: 36,
                               alignItems: "center",
                               justifyContent: "center",
-                              gap: 6,
-                              borderRadius: 12,
+                              borderRadius: 10,
                               borderWidth: 1,
-                              borderColor: "#CBD5E1",
-                              backgroundColor: "#FFFFFF",
-                              paddingVertical: 10,
-                              paddingHorizontal: 8,
+                              borderColor: "#FECACA",
+                              backgroundColor: "#FEF2F2",
                             }}
                           >
-                            {isSending ? (
-                              <ActivityIndicator
-                                size="small"
-                                color="#1F5577"
-                              />
-                            ) : (
-                              <>
-                                <Ionicons
-                                  name="mail-outline"
-                                  size={15}
+                            <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* Bottom Row: Actions (Send, Convert to Project or Project Created) */}
+                        {!isConverted &&
+                          quote.status !== "rejected" &&
+                          quote.status !== "cancelled" ? (
+                          <View className="mt-3 flex-row gap-2.5">
+                            <Pressable
+                              onPress={() => handleSendEstimate(quote)}
+                              disabled={isSending}
+                              style={{
+                                flex: 1,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 6,
+                                borderRadius: 12,
+                                borderWidth: 1,
+                                borderColor: "#CBD5E1",
+                                backgroundColor: "#FFFFFF",
+                                paddingVertical: 10,
+                                paddingHorizontal: 8,
+                              }}
+                            >
+                              {isSending ? (
+                                <ActivityIndicator
+                                  size="small"
                                   color="#1F5577"
                                 />
-                                <Text
-                                  style={{
-                                    fontSize: 13,
-                                    fontWeight: "600",
-                                    color: "#1F5577",
-                                  }}
-                                >
-                                  Send
-                                </Text>
-                              </>
-                            )}
-                          </Pressable>
+                              ) : (
+                                <>
+                                  <Ionicons
+                                    name="mail-outline"
+                                    size={15}
+                                    color="#1F5577"
+                                  />
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: "600",
+                                      color: "#1F5577",
+                                    }}
+                                  >
+                                    Send
+                                  </Text>
+                                </>
+                              )}
+                            </Pressable>
 
-                          <Pressable
-                            onPress={() => handleConvertEstimate(quote)}
-                            disabled={isConverting}
-                            style={{
-                              flex: 1.5,
-                              flexDirection: "row",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              gap: 6,
-                              borderRadius: 12,
-                              backgroundColor: "#1F5577",
-                              paddingVertical: 10,
-                              paddingHorizontal: 8,
-                            }}
-                          >
-                            {isConverting ? (
-                              <ActivityIndicator
-                                size="small"
-                                color="#FFFFFF"
-                              />
-                            ) : (
-                              <>
-                                <Ionicons
-                                  name="checkmark-circle-outline"
-                                  size={15}
+                            <Pressable
+                              onPress={() => handleConvertEstimate(quote)}
+                              disabled={isConverting}
+                              style={{
+                                flex: 1.5,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 6,
+                                borderRadius: 12,
+                                backgroundColor: "#1F5577",
+                                paddingVertical: 10,
+                                paddingHorizontal: 8,
+                              }}
+                            >
+                              {isConverting ? (
+                                <ActivityIndicator
+                                  size="small"
                                   color="#FFFFFF"
                                 />
-                                <Text
-                                  style={{
-                                    fontSize: 13,
-                                    fontWeight: "600",
-                                    color: "#FFFFFF",
-                                  }}
-                                >
-                                  Convert to Project
-                                </Text>
-                              </>
-                            )}
-                          </Pressable>
-                        </View>
-                      ) : isConverted ? (
-                        <View className="mt-3 flex-row items-center justify-center gap-1.5 rounded-[12px] border border-emerald-200 bg-emerald-50 py-2.5">
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={16}
-                            color="#059669"
-                          />
-                          <Text className="text-[13px] font-bold text-emerald-700">
-                            Project Created
-                          </Text>
-                        </View>
-                      ) : null}
+                              ) : (
+                                <>
+                                  <Ionicons
+                                    name="checkmark-circle-outline"
+                                    size={15}
+                                    color="#FFFFFF"
+                                  />
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: "600",
+                                      color: "#FFFFFF",
+                                    }}
+                                  >
+                                    Convert to Project
+                                  </Text>
+                                </>
+                              )}
+                            </Pressable>
+                          </View>
+                        ) : isConverted ? (
+                          <View className="mt-3 flex-row items-center justify-center gap-1.5 rounded-[12px] border border-emerald-200 bg-emerald-50 py-2.5">
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={16}
+                              color="#059669"
+                            />
+                            <Text className="text-[13px] font-bold text-emerald-700">
+                              Project Created
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
                     </View>
-                  </View>
-                );
-              })
-            )}
-          </View>
-        ) : activeTab === "overview" ? (
-          <QuoteOverviewTab selectors={quoteSelectors} />
-        ) : activeTab === "categories" ? (
-          <QuoteCategoriesTab />
-        ) : activeTab === "measurements" ? (
-          <QuoteMeasurementsTab />
-        ) : activeTab === "items" ? (
-          <QuoteWorkItemsTab />
-        ) : null}
-      </ScrollView>
+                  );
+                })
+              )}
+            </View>
+          ) : activeTab === "overview" ? (
+            <QuoteOverviewTab selectors={quoteSelectors} />
+          ) : activeTab === "categories" ? (
+            <QuoteCategoriesTab />
+          ) : activeTab === "measurements" ? (
+            <QuoteMeasurementsTab />
+          ) : activeTab === "items" ? (
+            <QuoteWorkItemsTab />
+          ) : null}
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <Modal
@@ -1423,16 +1458,14 @@ ${companyName || "Finis"}`,
                         setCompanyId(company.id);
                         setCompanySheetVisible(false);
                       }}
-                      className={`mb-3 rounded-[16px] border px-4 py-4 ${
-                        isSelected
+                      className={`mb-3 rounded-[16px] border px-4 py-4 ${isSelected
                           ? "border-[#1F5577] bg-[#EAF4FA]"
                           : "border-[#E2E8F0] bg-white"
-                      }`}
+                        }`}
                     >
                       <Text
-                        className={`text-[15px] font-semibold ${
-                          isSelected ? "text-[#1F5577]" : "text-[#1F2937]"
-                        }`}
+                        className={`text-[15px] font-semibold ${isSelected ? "text-[#1F5577]" : "text-[#1F2937]"
+                          }`}
                       >
                         {company.name}
                       </Text>

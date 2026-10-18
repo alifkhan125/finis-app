@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Text, TextInput, TouchableOpacity } from "react-native";
+import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import QuoteSectionCard from "./QuoteSectionCard";
 import QuoteWorkGroupCard, { type QuoteSelectedWorkGroup } from "./QuoteWorkGroupCard";
 import QuoteWorkTotalsBar from "./QuoteWorkTotalsBar";
@@ -70,22 +70,34 @@ export default function QuoteWorkItemsStep({
         </TouchableOpacity>
       </QuoteSectionCard>
 
-      {groups.map((group) => (
-        <QuoteWorkGroupCard
-          key={group.id}
-          group={group}
-          onToggleGroup={() => onToggleGroup(group.id)}
-          onToggleItem={(itemId) => onToggleItem(group.id, itemId)}
-          onEditItem={(itemId) => onEditItem(group.id, itemId)}
-          onDeleteItem={(itemId) => onDeleteItem(group.id, itemId)}
-          onChangeItemQuantity={(itemId, value) =>
-            onChangeItemQuantity(group.id, itemId, value)
-          }
-          onSelectItemUnit={(itemId, unit) =>
-            onSelectItemUnit(group.id, itemId, unit)
-          }
-        />
-      ))}
+      {groups.length === 0 ? (
+        <View className="my-3 items-center justify-center rounded-[16px] border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-4 py-8">
+          <Ionicons name="construct-outline" size={36} color="#94A3B8" />
+          <Text className="mt-2 text-[15px] font-semibold text-[#334155]">
+            No services added yet
+          </Text>
+          <Text className="mt-1 text-center text-[12px] leading-5 text-[#64748B]">
+            Tap "Add Service" above to add tasks, labor, materials, or select saved templates.
+          </Text>
+        </View>
+      ) : (
+        groups.map((group) => (
+          <QuoteWorkGroupCard
+            key={group.id}
+            group={group}
+            onToggleGroup={() => onToggleGroup(group.id)}
+            onToggleItem={(itemId) => onToggleItem(group.id, itemId)}
+            onEditItem={(itemId) => onEditItem(group.id, itemId)}
+            onDeleteItem={(itemId) => onDeleteItem(group.id, itemId)}
+            onChangeItemQuantity={(itemId, value) =>
+              onChangeItemQuantity(group.id, itemId, value)
+            }
+            onSelectItemUnit={(itemId, unit) =>
+              onSelectItemUnit(group.id, itemId, unit)
+            }
+          />
+        ))
+      )}
 
       <Text className="mb-2 mt-1 text-[12px] font-medium text-[#344054]">
         Estimated Time

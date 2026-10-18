@@ -19,6 +19,7 @@ function escapeHtml(value: string) {
 }
 
 export type GenerateQuotePdfParams = {
+  quoteNumber?: string;
   companyName?: string;
   projectName?: string;
   clientName: string;
@@ -66,6 +67,7 @@ function buildQuoteHtml(params: GenerateQuotePdfParams) {
     </head>
     <body>
       <h1>Construction Quote</h1>
+      ${params.quoteNumber ? `<div style="font-size:16px; font-weight:bold; color:#1F5577; margin-bottom:12px;">Quote #${escapeHtml(params.quoteNumber)}</div>` : ""}
       <div class="card">
         ${params.companyName ? `<div><strong>Company:</strong> ${escapeHtml(params.companyName)}</div>` : ""}
         ${params.projectName ? `<div style="margin-top:8px"><strong>Project:</strong> ${escapeHtml(params.projectName)}</div>` : ""}

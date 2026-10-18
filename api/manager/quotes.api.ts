@@ -535,11 +535,12 @@ export async function createQuoteEstimate(payload: CreateQuoteEstimatePayload) {
   const { data } = await api.post<{
     success?: boolean;
     message?: string;
-    data?: QuoteEstimateResponse;
+    data?: QuoteEstimateResponse | { quote?: QuoteEstimateResponse };
     quote?: QuoteEstimateResponse;
   }>("/admin/quote-estimates", payload);
 
-  const quote = data?.data || data?.quote || (data as any);
+  const raw = data as any;
+  const quote = raw?.data?.quote || raw?.quote || raw?.data || raw;
   return quote as QuoteEstimateResponse;
 }
 

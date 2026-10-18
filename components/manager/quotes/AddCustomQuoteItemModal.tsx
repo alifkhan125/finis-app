@@ -3,7 +3,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -11,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { toast } from "sonner-native";
 
 export type WorkItemTemplateSuggestion = {
   id: string;
@@ -59,7 +59,7 @@ export default function AddCustomQuoteItemModal({
   const [selectedFloorNumbers, setSelectedFloorNumbers] = useState<number[]>([]);
   const [plannedLocationKeys, setPlannedLocationKeys] = useState<string[]>([]);
 
-  // Reset form when modal opens
+  // Reset form when modal opens or closes
   const handleReset = () => {
     setSelectedTemplateId("");
     setTemplateDropdownOpen(false);
@@ -176,6 +176,7 @@ export default function AddCustomQuoteItemModal({
 
   const handleAdd = () => {
     if (!taskTitle.trim()) {
+      toast.error("Please enter a task title");
       return;
     }
 
@@ -202,17 +203,18 @@ export default function AddCustomQuoteItemModal({
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
       >
-        <Pressable
-          className="flex-1 items-center justify-center bg-black/50 px-4"
-          onPress={handleClose}
-        >
-          <Pressable
-            onPress={(e) => e.stopPropagation()}
-            className="w-full max-w-[420px] max-h-[90%] rounded-[24px] bg-white p-6 shadow-2xl"
-          >
+        <View className="flex-1 items-center justify-center bg-black/50 px-4">
+          {/* Backdrop dismiss */}
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={handleClose}
+            className="absolute inset-0"
+          />
+
+          <View className="w-full max-w-[420px] max-h-[85%] rounded-[24px] bg-white p-6 shadow-2xl">
             {/* Header: ADD SERVICE with [X] */}
             <View className="flex-row items-center justify-between border-b border-[#F1F5F9] pb-4">
               <Text className="text-[19px] font-black tracking-tight text-[#111827]">
@@ -370,7 +372,8 @@ export default function AddCustomQuoteItemModal({
               </View>
 
               {/* Checkbox 7: Allow Subtasks */}
-              <Pressable
+              <TouchableOpacity
+                activeOpacity={0.8}
                 onPress={() => setAllowSubtasks(!allowSubtasks)}
                 className="mb-4 flex-row items-center gap-2.5"
               >
@@ -388,7 +391,7 @@ export default function AddCustomQuoteItemModal({
                 <Text className="text-[13px] font-medium text-[#374151]">
                   Allow Subtasks
                 </Text>
-              </Pressable>
+              </TouchableOpacity>
 
               {/* Section 8: FLOORS / SECTIONS */}
               {plannedFloorNumbers.length > 0 && (
@@ -493,32 +496,33 @@ export default function AddCustomQuoteItemModal({
               )}
 
               {/* Action Buttons: Cancel and Add Service */}
-              <View className="mt-3 flex-row gap-3">
+              <View className="mt-5 flex-row gap-3 pb-2">
                 <TouchableOpacity
-                  activeOpacity={0.85}
+                  activeOpacity={0.8}
                   onPress={handleClose}
-                  className="h-[46px] flex-1 items-center justify-center rounded-[12px] border border-[#D1D5DB] bg-white"
+                  className="h-[48px] flex-1 items-center justify-center rounded-[12px] border border-[#D1D5DB] bg-white"
                 >
-                  <Text className="text-[14px] font-medium text-[#374151]">
+                  <Text className="text-[14px] font-semibold text-[#374151]">
                     Cancel
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={handleAdd}
-                  disabled={!taskTitle.trim()}
-                  className={`h-[46px] flex-1 items-center justify-center rounded-[12px] ${
-                    taskTitle.trim() ? "bg-[#71879B]" : "bg-[#94A3B8]"
+                  className={`h-[48px] flex-1 items-center justify-center rounded-[12px] shadow-sm ${
+                    taskTitle.trim()
+                      ? "bg-[#1F5577] active:bg-[#153D57]"
+                      : "bg-[#CBD5E1]"
                   }`}
                 >
-                  <Text className="text-[14px] font-semibold text-white">
+                  <Text className="text-[14px] font-bold text-white">
                     Add Service
                   </Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
