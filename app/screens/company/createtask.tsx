@@ -39,7 +39,7 @@ function formatDate(value: Date) {
 }
 
 export default function CreateTaskRoute() {
-  const { projectId, parentTaskTitle, editTaskTitle, editTaskDescription, editTaskPriority, editTaskDueDate, editTaskFloorUnits, editTaskPrice, taskId } = useLocalSearchParams<{
+  const { projectId, parentTaskTitle, editTaskTitle, editTaskDescription, editTaskPriority, editTaskDueDate, editTaskFloorUnits, editTaskPrice, editTaskAllowSubTaskCreation, taskId } = useLocalSearchParams<{
     projectId?: string;
     parentTaskTitle?: string;
     editTaskTitle?: string;
@@ -48,6 +48,7 @@ export default function CreateTaskRoute() {
     editTaskDueDate?: string;
     editTaskFloorUnits?: string;
     editTaskPrice?: string;
+    editTaskAllowSubTaskCreation?: string;
     taskId?: string;
   }>();
   const currentUser = useAuthStore((state) => state.user);
@@ -73,8 +74,10 @@ export default function CreateTaskRoute() {
   const [estimatedHours, setEstimatedHours] = useState('');
   const [price, setPrice] = useState(editTaskPrice ?? "");
 
-  const [floorUnitSelections, setFloorUnitSelections] = useState<TaskFloorUnitSelection[]>([]);
-  const [allowSubTaskCreation, setAllowSubTaskCreation] = useState(true);
+  const [floorUnitSelections, setFloorUnitSelections] = useState<TaskFloorUnitSelection[]>(() => {
+    try { return JSON.parse(editTaskFloorUnits || "[]"); } catch { return []; }
+  });
+  const [allowSubTaskCreation, setAllowSubTaskCreation] = useState(editTaskAllowSubTaskCreation === "true");
 
   const createTaskMutation = useCreateTaskMutation();
   const updateTaskMutation = useUpdateTaskMutation(taskId ?? "");
@@ -105,6 +108,10 @@ export default function CreateTaskRoute() {
       return;
     }
 
+    if (!allowSubTaskCreation && !floorUnitSelections.length) {
+      toast.error("Select units for automatic subtasks");
+      return;
+    }
     try {
       const floorsPayload = floorUnitSelections.reduce((accumulator, selection) => {
         const existing = accumulator.find(
@@ -270,7 +277,7 @@ export default function CreateTaskRoute() {
             {canManageTaskPrice ? (
               <View className="mt-4">
                 <TaskFormField
-                  label="Internal Price"
+                  label="Internal Price per Unit"
                   placeholder="e.g. 150"
                   value={price}
                   onChangeText={setPrice}
@@ -297,10 +304,10 @@ export default function CreateTaskRoute() {
               </View>
               <View className="ml-3 flex-1">
                 <Text className="text-[15px] font-medium text-[#1A212B]">
-                  Allow Subtask Creation
+                  Allow Additional Subtasks
                 </Text>
                 <Text className="mt-1 text-[12px] text-[#667085]">
-                  Turn off to block creating subtasks under this task.
+                  {allowSubTaskCreation ? "Additional subtasks can be created manually." : `${floorUnitSelections.length} automatic subtask(s), one per selected unit. Additional subtasks are disabled.`}
                 </Text>
               </View>
             </TouchableOpacity>

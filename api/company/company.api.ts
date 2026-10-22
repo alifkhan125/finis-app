@@ -545,7 +545,7 @@ function mapBackendTaskResponse(task: BackendTaskResponseItem): TaskListItem {
     subTaskCount: task.subTaskCount ?? 0,
     completedSubTaskCount: task.completedSubTaskCount ?? 0,
     assignedWorkerCount: task.assignedWorkerCount ?? 0,
-    allowSubTaskCreation: task.task.allowSubTaskCreation ?? true,
+    allowSubTaskCreation: task.task.allowSubTaskCreation ?? false,
     approvalDecision: task.task.approvalDecision,
     completionDecision: task.task.completionDecision,
     floorUnitSelections: task.taskUnits 
@@ -1683,7 +1683,7 @@ export async function updateTask(
 
   Object.entries(payload).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
-      formData.append(key, String(value));
+      formData.append(key, typeof value === "object" ? JSON.stringify(value) : String(value));
     }
   });
 

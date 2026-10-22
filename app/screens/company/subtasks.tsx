@@ -76,7 +76,7 @@ export default function SubtasksRoute() {
   const allowSubTaskCreationParam = Array.isArray(params.allowSubTaskCreation)
     ? params.allowSubTaskCreation[0]
     : params.allowSubTaskCreation;
-  const allowSubTaskCreation = allowSubTaskCreationParam !== "false";
+  const allowSubTaskCreation = allowSubTaskCreationParam === "true";
   const [filter, setFilter] = useState<TaskFilter>("All");
   const [searchText, setSearchText] = useState("");
 

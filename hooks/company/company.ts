@@ -1317,7 +1317,8 @@ export function useUpdateTaskMutation(taskId: string) {
       file?: Parameters<typeof updateTask>[2];
     }) => updateTask(params.taskId, params.payload, params.file),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["task", "details", taskId] });
+      await queryClient.invalidateQueries({ queryKey: ["task"] });
+      await queryClient.invalidateQueries({ queryKey: ["subtask"] });
       await queryClient.invalidateQueries({ queryKey: ["project", "tasks"] });
       await queryClient.invalidateQueries({ queryKey: ["project-analysis"] });
       toast.success("Task updated successfully");

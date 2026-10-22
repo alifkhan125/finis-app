@@ -94,7 +94,7 @@ export default function TaskScreen({ projectId, onCreateTaskPress }: TaskScreenP
         subTaskCount: task.subTaskCount ?? task._count?.subTasks ?? 0,
         completedSubTaskCount: task.completedSubTaskCount ?? 0,
         assignedWorkerCount: task.assignedWorkerCount ?? 0,
-        allowSubTaskCreation: task.allowSubTaskCreation ?? true,
+        allowSubTaskCreation: task.allowSubTaskCreation ?? false,
         approvalDecision: task.approvalDecision,
         completionDecision: task.completionDecision,
         price: task.price,
@@ -190,6 +190,7 @@ export default function TaskScreen({ projectId, onCreateTaskPress }: TaskScreenP
                     params: {
                       taskId: task.id,
                       projectId: task.projectId || projectId,
+                      editTaskAllowSubTaskCreation: String(task.allowSubTaskCreation ?? false),
                       editTaskTitle: task.title,
                       editTaskDescription: task.description || "",
                       editTaskPriority: task.priority || "MEDIUM",
@@ -222,7 +223,7 @@ export default function TaskScreen({ projectId, onCreateTaskPress }: TaskScreenP
                       parentTaskId: task.id,
                       projectId: task.projectId || projectId,
                       title: task.title,
-                      allowSubTaskCreation: String(task.allowSubTaskCreation ?? true),
+                      allowSubTaskCreation: String(task.allowSubTaskCreation ?? false),
                     },
                   })
                 }
