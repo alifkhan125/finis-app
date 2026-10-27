@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -190,13 +189,12 @@ export default function QuoteMeasurementsTab() {
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          data={measurements}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40, gap: 12 }}
-          renderItem={({ item }) => (
-            <View className="rounded-[16px] border border-[#E2E8F0] bg-white p-4 shadow-sm">
+        <View className="gap-3 pb-10">
+          {measurements.map((item) => (
+            <View
+              key={item.id}
+              className="rounded-[16px] border border-[#E2E8F0] bg-white p-4 shadow-sm"
+            >
               <View className="flex-row items-start justify-between">
                 <View className="flex-1 pr-3">
                   <View className="flex-row items-center gap-2">
@@ -257,8 +255,8 @@ export default function QuoteMeasurementsTab() {
                 </View>
               </View>
             </View>
-          )}
-        />
+          ))}
+        </View>
       )}
 
       {/* Add / Edit Measurement Modal */}

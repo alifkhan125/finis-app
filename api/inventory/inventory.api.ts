@@ -59,13 +59,13 @@ export async function getInventorySummary() {
 
 
 export type CreateInventoryPayload = {
-  projectId: string;
+  projectId?: string;
   name: string;
-  category: string;
-  unit: string;
-  currentQty: number;
-  minStockQty: number;
-  location: string;
+  category?: string;
+  unit?: string;
+  currentQty?: number;
+  minStockQty?: number;
+  location?: string;
 };
 
 export async function createInventoryItem(payload: CreateInventoryPayload) {
@@ -145,6 +145,7 @@ export type UpdateInventoryPayload = {
   category?: string;
   unit?: string;
   currentQty?: number;
+  minStockQty?: number;
   location?: string;
 };
 

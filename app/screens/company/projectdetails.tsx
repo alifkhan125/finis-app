@@ -29,6 +29,17 @@ const MENU_ROUTES: Record<
   Geofencing: "/screens/company/managergeofencing",
 };
 
+function formatProjectDate(value?: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()) || date.getTime() <= 0) return null;
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function ProjectDetailsRoute() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const projectId = typeof id === "string" ? id : undefined;
@@ -46,17 +57,11 @@ export default function ProjectDetailsRoute() {
     [role],
   );
 
-  const formattedDateRange = data
-    ? `${new Date(data.startDate).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    })} - ${new Date(data.endDate).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    })}`
-    : undefined;
+  const formattedStartDate = formatProjectDate(data?.startDate);
+  const formattedEndDate = formatProjectDate(data?.endDate);
+  const formattedDateRange = formattedStartDate
+    ? `${formattedStartDate} - ${formattedEndDate ?? "Ongoing"}`
+    : formattedEndDate ?? "Schedule not set";
 
   return (
     <SafeAreaView edges={['top','left',"right"]} className="flex-1 bg-[#E9EDF1]">

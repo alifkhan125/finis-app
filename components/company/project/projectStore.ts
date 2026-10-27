@@ -71,8 +71,8 @@ export function getDefaultProjectData() {
 export function mapApiToProjectData(apiData: {
   name: string;
   type: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   numFloors: number;
   unitPerFloor?: number;
   roomsPerFloor?: number;
@@ -87,8 +87,8 @@ export function mapApiToProjectData(apiData: {
   return {
     projectName: apiData.name,
     company: apiData.client?.companyName ?? "",
-    startDate: apiData.startDate,
-    endDate: apiData.endDate,
+    startDate: apiData.startDate ?? "",
+    endDate: apiData.endDate ?? "",
   projectType:
       apiData.type === "apartment"
         ? "Apartment Building"
