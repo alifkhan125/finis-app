@@ -12,6 +12,7 @@ import type {
 } from "./quoteTypes";
 
 type QuoteBuilderFormProps = {
+  mode?: "project" | "building";
   companyName: string;
   companyId: string;
   isCompaniesLoading?: boolean;
@@ -54,9 +55,11 @@ type QuoteBuilderFormProps = {
   unitType: QuoteUnitType;
   setUnitType: (value: QuoteUnitType) => void;
   onNext: () => void;
+  onBack?: () => void;
 };
 
 export default function QuoteBuilderForm({
+  mode = "project",
   companyName,
   companyId,
   isCompaniesLoading = false,
@@ -96,6 +99,7 @@ export default function QuoteBuilderForm({
   unitType,
   setUnitType,
   onNext,
+  onBack,
 }: QuoteBuilderFormProps) {
   const [fallbackPickerField, setFallbackPickerField] = React.useState<"start" | "end" | null>(null);
 
@@ -149,6 +153,8 @@ export default function QuoteBuilderForm({
 
   return (
     <>
+      {mode === "project" ? (
+      <>
       <QuoteSectionCard title="Client Information" icon="business-outline">
         <View className="mb-4">
           <Text className="mb-2 text-[14px] font-medium text-[#2B2B2B]">
@@ -247,9 +253,14 @@ export default function QuoteBuilderForm({
           />
         </View>
 
-        <Text className="mb-3 text-[14px] font-medium text-[#2B2B2B]">
-          Unit Type *
+      </QuoteSectionCard>
+      </>
+      ) : (
+      <QuoteSectionCard title="Building Details" icon="business-outline">
+        <Text className="mb-3 text-[13px] leading-5 text-[#64748B]">
+          Define the floor and unit range used to build the quotation work areas.
         </Text>
+        <Text className="mb-3 text-[14px] font-medium text-[#2B2B2B]">Unit Type *</Text>
         <View className="flex-row gap-3">
           <View className="w-[48%]">
             <QuoteChoiceCard
@@ -268,6 +279,27 @@ export default function QuoteBuilderForm({
         </View>
 
         <View className="mt-5 flex-row gap-3">
+          <View className="flex-1">
+            <QuoteField
+              label="Total Floors"
+              placeholder="e.g. 4"
+              value={floorsCount}
+              onChangeText={setFloorsCount}
+              keyboardType="number-pad"
+            />
+          </View>
+          <View className="flex-1">
+            <QuoteField
+              label="Maximum Units per Floor"
+              placeholder="e.g. 3"
+              value={unitsPerFloor}
+              onChangeText={setUnitsPerFloor}
+              keyboardType="number-pad"
+            />
+          </View>
+        </View>
+
+        <View className="flex-row gap-3">
           <View className="flex-1">
             <QuoteField
               label="Start Date"
@@ -292,47 +324,8 @@ export default function QuoteBuilderForm({
           </View>
         </View>
 
-        <View className="flex-row gap-3">
-          <View className="flex-1">
-            <QuoteField
-              label="Floor Start"
-              placeholder="e.g. 1"
-              value={floorStart}
-              onChangeText={setFloorStart}
-              keyboardType="number-pad"
-            />
-          </View>
-          <View className="flex-1">
-            <QuoteField
-              label="Floor End"
-              placeholder="e.g. 4"
-              value={floorEnd}
-              onChangeText={setFloorEnd}
-              keyboardType="number-pad"
-            />
-          </View>
-        </View>
-        <View className="mt-3 flex-row gap-3">
-          <View className="flex-1">
-            <QuoteField
-              label="Unit Start"
-              placeholder="e.g. 101"
-              value={unitStart}
-              onChangeText={setUnitStart}
-              keyboardType="number-pad"
-            />
-          </View>
-          <View className="flex-1">
-            <QuoteField
-              label="Unit End"
-              placeholder="e.g. 103"
-              value={unitEnd}
-              onChangeText={setUnitEnd}
-              keyboardType="number-pad"
-            />
-          </View>
-        </View>
       </QuoteSectionCard>
+      )}
 
       {fallbackPickerField && (
         <DateTimePicker
@@ -360,13 +353,24 @@ export default function QuoteBuilderForm({
         />
       )}
 
-      <TouchableOpacity
-        activeOpacity={0.88}
-        onPress={onNext}
-        className="mt-5 h-[56px] items-center justify-center rounded-[14px] bg-[#1F5577]"
-      >
-        <Text className="text-[16px] font-medium text-white">Next</Text>
-      </TouchableOpacity>
+      <View className="mt-5 flex-row gap-3">
+        {onBack ? (
+          <TouchableOpacity
+            activeOpacity={0.88}
+            onPress={onBack}
+            className="h-[56px] flex-1 items-center justify-center rounded-[14px] border border-[#CBD5E1] bg-white"
+          >
+            <Text className="text-[16px] font-medium text-[#475569]">Back</Text>
+          </TouchableOpacity>
+        ) : null}
+        <TouchableOpacity
+          activeOpacity={0.88}
+          onPress={onNext}
+          className="h-[56px] flex-1 items-center justify-center rounded-[14px] bg-[#1F5577]"
+        >
+          <Text className="text-[16px] font-medium text-white">Next</Text>
+        </TouchableOpacity>
+      </View>
     </>
   );
 }

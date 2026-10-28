@@ -482,6 +482,10 @@ export type CreateQuoteEstimatePayload = {
   discountAmount?: number;
   taxAmount?: number;
   tasks?: CreateQuoteEstimateTaskPayload[];
+  schemaVersion?: number;
+  quotationDetails?: unknown[];
+  buildingPlan?: Record<string, unknown>;
+  pricingConfig?: Record<string, unknown>;
 };
 
 export type QuoteEstimateResponse = {
@@ -513,13 +517,20 @@ export type QuoteEstimateResponse = {
   company?: { id: string; name: string };
   createdAt: string;
   updatedAt?: string;
+  schemaVersion?: number;
+  quotationDetails?: unknown[] | null;
+  buildingPlan?: Record<string, any> | null;
+  pricingConfig?: Record<string, any> | null;
+  convertedProject?: { id: string; name: string } | null;
   tasks?: Array<{
     id: string;
     title: string;
+    description?: string | null;
     quantity: number;
     unit: string;
     unitPrice: number;
     totalPrice: number;
+    estimatedHours?: number | null;
     plannedFloorLabel?: string | null;
     plannedUnitLabel?: string | null;
     plannedLocationKey?: string | null;
@@ -542,6 +553,20 @@ export async function createQuoteEstimate(payload: CreateQuoteEstimatePayload) {
   const raw = data as any;
   const quote = raw?.data?.quote || raw?.quote || raw?.data || raw;
   return quote as QuoteEstimateResponse;
+}
+
+export async function updateQuoteEstimate(
+  id: string,
+  payload: Partial<CreateQuoteEstimatePayload>,
+) {
+  const { data } = await api.patch<any>(`/admin/quote-estimates/${id}`, payload);
+  const raw = data as any;
+  return (raw?.data?.quote || raw?.quote || raw?.data || raw) as QuoteEstimateResponse;
+}
+
+export async function getQuoteEstimate(id: string) {
+  const { data } = await api.get<any>(`/admin/quote-estimates/${id}`);
+  return (data?.data ?? data) as QuoteEstimateResponse;
 }
 
 export async function sendQuoteEstimate(id: string) {
@@ -580,8 +605,21 @@ export async function getQuoteEstimates(params?: {
 
   const raw = data?.data ?? data;
   if (Array.isArray(raw)) return raw as QuoteEstimateResponse[];
+  if (raw && Array.isArray(raw.data)) return raw.data as QuoteEstimateResponse[];
   if (raw && Array.isArray(raw.quotes)) return raw.quotes as QuoteEstimateResponse[];
   return [] as QuoteEstimateResponse[];
+}
+
+export async function rejectQuoteEstimate(id: string, reason?: string) {
+  const { data } = await api.post(`/admin/quote-estimates/${id}/reject`, {
+    reason: reason || "Rejected from mobile app",
+  });
+  return data;
+}
+
+export async function cancelQuoteEstimate(id: string) {
+  const { data } = await api.post(`/admin/quote-estimates/${id}/cancel`);
+  return data;
 }
 
 export async function deleteQuoteEstimate(id: string) {

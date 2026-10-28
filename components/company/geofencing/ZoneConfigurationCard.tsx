@@ -107,6 +107,7 @@ export default function ZoneConfigurationCard({
             </View>
             {showActions ? (
               <TouchableOpacity
+                key="toggle-geofence-btn"
                 activeOpacity={0.85}
                 onPress={handleToggleActive}
                 disabled={
@@ -129,6 +130,7 @@ export default function ZoneConfigurationCard({
             ) : null}
             {showActions ? (
               <TouchableOpacity
+                key="delete-geofence-btn"
                 activeOpacity={0.85}
                 onPress={handleDelete}
                 disabled={

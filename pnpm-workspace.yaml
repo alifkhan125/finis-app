@@ -7,3 +7,6 @@ allowBuilds:
   '@firebase/util': true
   protobufjs: true
   unrs-resolver: true
+
+patchedDependencies:
+  react-native-css-interop@0.2.7: patches/react-native-css-interop@0.2.7.patch

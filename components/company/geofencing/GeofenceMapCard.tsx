@@ -205,7 +205,7 @@ export default function GeofenceMapCard({
             </View>
 
             {isEditingEnabled ? (
-              <View className="items-end gap-2">
+              <View key="geofence-editing-controls" className="items-end gap-2">
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={handleUndo}
@@ -232,7 +232,7 @@ export default function GeofenceMapCard({
 
         <View className="h-[430px] w-full">
           {webViewUnavailable ? (
-            <View className="h-full items-center justify-center bg-[#EEF2F6] px-6">
+            <View key="map-unavailable-view" className="h-full items-center justify-center bg-[#EEF2F6] px-6">
               <Text className="text-center text-[14px] text-[#475569]">
                 Map preview is unavailable in this runtime.
               </Text>
@@ -272,7 +272,7 @@ export default function GeofenceMapCard({
               }}
             />
           ) : (
-            <View className="h-full items-center justify-center bg-[#EEF2F6]">
+            <View key="map-loading-view" className="h-full items-center justify-center bg-[#EEF2F6]">
               <ActivityIndicator size="large" color="#1D5677" />
               <Text className="mt-2 text-[14px] text-[#6B7280]">
                 Loading map...
@@ -281,7 +281,7 @@ export default function GeofenceMapCard({
           )}
 
           {isEditingEnabled ? (
-            <View className="absolute right-3 top-3 rounded-lg bg-[#0F172A]/80 px-3 py-2">
+            <View key="gps-indicator" className="absolute right-3 top-3 rounded-lg bg-[#0F172A]/80 px-3 py-2">
             <Text className="text-[11px] font-medium text-[#E5E7EB]">GPS</Text>
             <Text className="text-[12px] text-white">
               {isFetchingLocation ? "Locating..." : locationLabel}

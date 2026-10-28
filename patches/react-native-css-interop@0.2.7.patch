@@ -1,0 +1,171 @@
+diff --git a/dist/runtime/native/render-component.js b/dist/runtime/native/render-component.js
+index 88d2ec15de684bae4dc7b124c4ca36ef726395fa..84e1e15bb7dac4e5a4b19d54fce07743971c2a8b 100644
+--- a/dist/runtime/native/render-component.js
++++ b/dist/runtime/native/render-component.js
+@@ -119,25 +119,51 @@ function createAnimatedComponent(Component) {
+     return AnimatedComponent;
+ }
+ function printUpgradeWarning(warning, originalProps) {
+-    console.log(`CssInterop upgrade warning.\n\n${warning}.\n\nThis warning was caused by a component with the props:\n${stringify(originalProps)}\n\nIf adding or removing sibling components caused this warning you should add a unique "key" prop to your components. https://react.dev/learn/rendering-lists#keeping-list-items-in-order-with-key\n`);
++    try {
++        console.warn(`CssInterop upgrade warning.\n\n${warning}.\n\nThis warning was caused by a component with the props:\n${stringify(originalProps)}\n\nIf adding or removing sibling components caused this warning you should add a unique "key" prop to your components. https://react.dev/learn/rendering-lists#keeping-list-items-in-order-with-key\n`);
++    } catch {
++        console.warn(`CssInterop upgrade warning.\n\n${warning}\n`);
++    }
+ }
+ function stringify(object) {
+-    const seen = new WeakSet();
+-    return JSON.stringify(object, function replace(_, value) {
+-        if (!(value !== null && typeof value === "object")) {
+-            return value;
+-        }
+-        if (seen.has(value)) {
+-            return "[Circular]";
+-        }
+-        seen.add(value);
+-        const newValue = Array.isArray(value) ? [] : {};
+-        for (const entry of Object.entries(value)) {
+-            newValue[entry[0]] = replace(entry[0], entry[1]);
+-        }
+-        seen.delete(value);
+-        return newValue;
+-    }, 2);
++    try {
++        const seen = new WeakSet();
++        return JSON.stringify(object, function replace(key, value) {
++            if (key === "children" && typeof value === "object") {
++                return "[Children]";
++            }
++            if (key === "_owner" || key === "_store" || key === "context" || key === "_currentValue" || key === "_currentValue2") {
++                return undefined;
++            }
++            if (typeof value === "function") {
++                return value.name ? `[Function ${value.name}]` : "[Function]";
++            }
++            if (!(value !== null && typeof value === "object")) {
++                return value;
++            }
++            if (seen.has(value)) {
++                return "[Circular]";
++            }
++            seen.add(value);
++            const newValue = Array.isArray(value) ? [] : {};
++            try {
++                for (const [k, v] of Object.entries(value)) {
++                    if (k === "_owner" || k === "_store" || k === "context" || k === "_currentValue" || k === "_currentValue2") continue;
++                    try {
++                        newValue[k] = replace(k, v);
++                    } catch {
++                        newValue[k] = "[Unserializable]";
++                    }
++                }
++            } catch {
++                return "[Unserializable]";
++            }
++            seen.delete(value);
++            return newValue;
++        }, 2);
++    } catch {
++        return "[Props]";
++    }
+ }
+ function getDebugReplacer() {
+     const seen = new WeakSet();
+diff --git a/src/runtime/native/render-component.tsx b/src/runtime/native/render-component.tsx
+index 341db1c779fc5e77fa3f165d92896be63efa6df8..51bb9000b8b8a0f5688cb39fa9580d6a02abc312 100644
+--- a/src/runtime/native/render-component.tsx
++++ b/src/runtime/native/render-component.tsx
+@@ -238,38 +238,64 @@ function printUpgradeWarning(
+   warning: string,
+   originalProps: Record<string, any> | null | undefined,
+ ) {
+-  console.log(
+-    `CssInterop upgrade warning.\n\n${warning}.\n\nThis warning was caused by a component with the props:\n${stringify(originalProps)}\n\nIf adding or removing sibling components caused this warning you should add a unique "key" prop to your components. https://react.dev/learn/rendering-lists#keeping-list-items-in-order-with-key\n`,
+-  );
++  try {
++    console.warn(
++      `CssInterop upgrade warning.\n\n${warning}.\n\nThis warning was caused by a component with the props:\n${stringify(originalProps)}\n\nIf adding or removing sibling components caused this warning you should add a unique "key" prop to your components. https://react.dev/learn/rendering-lists#keeping-list-items-in-order-with-key\n`,
++    );
++  } catch {
++    console.warn(`CssInterop upgrade warning.\n\n${warning}\n`);
++  }
+ }
+ 
+ function stringify(object: any) {
+-  const seen = new WeakSet();
+-  return JSON.stringify(
+-    object,
+-    function replace(_, value) {
+-      if (!(value !== null && typeof value === "object")) {
+-        return value;
+-      }
+-
+-      if (seen.has(value)) {
+-        return "[Circular]";
+-      }
+-
+-      seen.add(value);
+-
+-      const newValue: any = Array.isArray(value) ? [] : {};
+-
+-      for (const entry of Object.entries(value)) {
+-        newValue[entry[0]] = replace(entry[0], entry[1]);
+-      }
+-
+-      seen.delete(value);
+-
+-      return newValue;
+-    },
+-    2,
+-  );
++  try {
++    const seen = new WeakSet();
++    return JSON.stringify(
++      object,
++      function replace(key, value) {
++        if (key === "children" && typeof value === "object") {
++          return "[Children]";
++        }
++        if (key === "_owner" || key === "_store" || key === "context" || key === "_currentValue" || key === "_currentValue2") {
++          return undefined;
++        }
++        if (typeof value === "function") {
++          return value.name ? `[Function ${value.name}]` : "[Function]";
++        }
++        if (!(value !== null && typeof value === "object")) {
++          return value;
++        }
++
++        if (seen.has(value)) {
++          return "[Circular]";
++        }
++
++        seen.add(value);
++
++        const newValue: any = Array.isArray(value) ? [] : {};
++
++        try {
++          for (const [k, v] of Object.entries(value)) {
++            if (k === "_owner" || k === "_store" || k === "context" || k === "_currentValue" || k === "_currentValue2") continue;
++            try {
++              newValue[k] = replace(k, v);
++            } catch {
++              newValue[k] = "[Unserializable]";
++            }
++          }
++        } catch {
++          return "[Unserializable]";
++        }
++
++        seen.delete(value);
++
++        return newValue;
++      },
++      2,
++    );
++  } catch {
++    return "[Props]";
++  }
+ }
+ 
+ // const ForwardRefSymbol = Symbol.for("react.forward_ref");

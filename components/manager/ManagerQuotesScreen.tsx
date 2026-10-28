@@ -10,6 +10,7 @@ import {
   RefreshControl,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -23,13 +24,16 @@ import {
   getQuoteWorkCategories,
   getQuoteWorkItems,
   quickAddQuoteWorkItem,
-  sendManagerQuoteMail,
   updateManagerQuote,
   createQuoteEstimate,
+  updateQuoteEstimate,
+  getQuoteEstimate,
   sendQuoteEstimate,
   acceptAndCreateProject,
   getQuoteEstimates,
   deleteQuoteEstimate,
+  rejectQuoteEstimate,
+  cancelQuoteEstimate,
   type QuoteEstimateResponse,
   type QuoteSelectorOption,
   type QuoteWorkItemGroup,
@@ -89,12 +93,21 @@ export type QuoteTabId =
   | "measurements"
   | "items";
 
+const quotationStepLabels = [
+  "Project Details",
+  "Quotation Details",
+  "Building Details",
+  "Workable Area",
+  "Services & Pricing",
+  "Full Quotation View",
+];
+
 export default function ManagerQuotesScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const [activeTab, setActiveTab] = useState<QuoteTabId>("builder");
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [companyId, setCompanyId] = useState("");
   const [companySheetVisible, setCompanySheetVisible] = useState(false);
   const [projectName, setProjectName] = useState("");
@@ -103,6 +116,8 @@ export default function ManagerQuotesScreen() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [email, setEmail] = useState("");
   const [estimatedTime, setEstimatedTime] = useState("");
+  const [quotationDetailsText, setQuotationDetailsText] = useState("");
+  const [quotationDetailsChanged, setQuotationDetailsChanged] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [floorsCount, setFloorsCount] = useState("");
@@ -121,6 +136,8 @@ export default function ManagerQuotesScreen() {
   const [isGeneratingQuote, setIsGeneratingQuote] = useState(false);
   const [isConvertingId, setIsConvertingId] = useState<string | null>(null);
   const [isSendingId, setIsSendingId] = useState<string | null>(null);
+  const [editingQuote, setEditingQuote] = useState<QuoteEstimateResponse | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("all");
   const [discountPercentInput, setDiscountPercentInput] = useState("0");
   const [appliedDiscountPercent, setAppliedDiscountPercent] = useState(0);
@@ -147,29 +164,19 @@ export default function ManagerQuotesScreen() {
   const [editChecklist, setEditChecklist] = useState<string[]>([]);
 
   const plannedFloorNumbers = useMemo(() => {
-    if (floorStart && floorEnd) {
-      const start = Number(floorStart);
-      const end = Number(floorEnd);
-      return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index);
-    }
     if (floorsCount) {
       const count = Number(floorsCount);
-      const start = Number(floorStart) || 1;
-      return Array.from({ length: Math.max(0, count) }, (_, index) => start + index);
+      return Array.from({ length: Math.max(0, count) }, (_, index) => index + 1);
     }
     return [];
-  }, [floorStart, floorEnd, floorsCount]);
+  }, [floorsCount]);
 
   const getPlannedUnitNames = (floor: number) => {
-    if (!unitStart) return [];
-    const start = Number(unitStart);
-    const count = unitEnd
-      ? Math.max(0, Number(unitEnd) - start + 1)
-      : unitsPerFloor
-        ? Number(unitsPerFloor)
-        : 1;
-    const floorOffset = floor - (Number(floorStart) || plannedFloorNumbers[0] || 1);
-    return Array.from({ length: count }, (_, index) => String(start + floorOffset * 100 + index));
+    const count = Number(unitsPerFloor) || 0;
+    return Array.from({ length: Math.max(0, count) }, (_, index) => {
+      const suffix = String(index + 1).padStart(2, "0");
+      return `${floor}${suffix}`;
+    });
   };
 
   const quoteEstimatesQuery = useQuery({
@@ -296,6 +303,184 @@ export default function ManagerQuotesScreen() {
   const projectDetailsLabel = `${projectType} • ${propertyType}`;
   const projectMetaLabel = "";
 
+  const buildEstimatePayload = () => {
+    const selectedTasks = workGroups.flatMap((group) =>
+      group.items
+        .filter((item) => item.selected)
+        .map((item, index) => ({
+          title: item.title,
+          description: item.description,
+          quantity: Number(item.quantity) || 1,
+          unit: item.selectedUnit || "each",
+          unitPrice: Number(item.selectedUnitPrice) || 0,
+          estimatedHours: item.estimatedHours
+            ? Number(item.estimatedHours)
+            : estimatedTime
+              ? Number(estimatedTime) || undefined
+              : undefined,
+          sortOrder: index,
+          scopeChecklist: item.scopeChecklist,
+          locationMode:
+            item.locationMode ||
+            (item.plannedLocationKeys?.length ? "selected" : "all"),
+          selectedFloorNumbers: item.selectedFloorNumbers,
+          selectedUnitNames: item.selectedUnitNames,
+          plannedLocationKeys: item.plannedLocationKeys,
+        })),
+    );
+    const plannedFloors = plannedFloorNumbers.map((floor) => ({
+      id: `floor-${floor}`,
+      label: `Floor ${floor}`,
+      floorNumber: floor,
+      selected: true,
+      units: getPlannedUnitNames(floor).map((unitName) => ({
+        id: `floor-${floor}-unit-${unitName}`,
+        label: unitName,
+        selected: true,
+      })),
+    }));
+
+    return {
+      companyId,
+      projectName: projectName.trim(),
+      clientName: (clientName || defaultClientName).trim(),
+      clientEmail: (email || defaultEmail).trim() || undefined,
+      clientPhone: (phoneNumber || defaultPhone).trim() || undefined,
+      projectAddress: projectAddress.trim() || undefined,
+      projectType: projectType.toLowerCase().replace(/\s+/g, "_"),
+      propertyType: propertyType.toLowerCase().replace(/\s+/g, "_"),
+      unitType: unitType.toLowerCase().replace(/\s+/g, "_"),
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      floorsCount: floorsCount ? Number(floorsCount) : undefined,
+      unitsPerFloor: unitsPerFloor ? Number(unitsPerFloor) : undefined,
+      floorStart: floorsCount ? 1 : undefined,
+      floorEnd: floorsCount ? Number(floorsCount) : undefined,
+      unitStart: unitsPerFloor ? 1 : undefined,
+      unitEnd: unitsPerFloor ? Number(unitsPerFloor) : undefined,
+      discountAmount: discountAmount || 0,
+      tasks: selectedTasks,
+      schemaVersion: 2,
+      quotationDetails: quotationDetailsChanged
+        ? quotationDetailsText.trim()
+          ? [{ heading: false, bullet: false, runs: [{ text: quotationDetailsText.trim() }] }]
+          : []
+        : Array.isArray(editingQuote?.quotationDetails) ? editingQuote.quotationDetails : [],
+      buildingPlan: {
+        totalFloors: Number(floorsCount) || 0,
+        capacity: Number(unitsPerFloor) || 0,
+        floorMode: "Standard",
+        customLabels: "",
+        pattern: "floor",
+        start: 1,
+        digits: 2,
+        separator: "",
+        floors: plannedFloors,
+      },
+      pricingConfig: { services: selectedTasks },
+    };
+  };
+
+  const validateDraft = () => {
+    if (!companyId) return "Company is required.";
+    if (!projectName.trim()) return "Project name is required.";
+    if (!(clientName || defaultClientName).trim()) return "Client name is required.";
+    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+      return "End date cannot be earlier than start date.";
+    }
+    return null;
+  };
+
+  const handleSaveDraft = async () => {
+    const validationError = validateDraft();
+    if (validationError) {
+      toast.error(validationError);
+      return null;
+    }
+    try {
+      setIsSavingDraft(true);
+      const payload = buildEstimatePayload();
+      const saved = editingQuote
+        ? await updateQuoteEstimate(editingQuote.id, payload)
+        : await createQuoteEstimate(payload);
+      setEditingQuote(saved);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "quote-estimates"] });
+      toast.success(`Quote #${saved.quoteNumber || "draft"} saved.`);
+      return saved;
+    } catch (error: any) {
+      toast.error(error?.message || "Unable to save quote draft.");
+      return null;
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
+
+  const handleOpenEstimate = async (summary: QuoteEstimateResponse) => {
+    try {
+      const quote = await getQuoteEstimate(summary.id);
+      setEditingQuote(quote);
+      setCompanyId(quote.companyId || "");
+      setProjectName(quote.projectName || "");
+      setClientName(quote.clientName || "");
+      setEmail(quote.clientEmail || "");
+      setPhoneNumber(quote.clientPhone || "");
+      setProjectAddress(quote.projectAddress || "");
+      setStartDate(quote.startDate?.slice(0, 10) || "");
+      setEndDate(quote.endDate?.slice(0, 10) || "");
+      const detailsText = Array.isArray(quote.quotationDetails)
+        ? quote.quotationDetails
+            .flatMap((block: any) => Array.isArray(block?.runs) ? block.runs : [])
+            .map((run: any) => String(run?.text || ""))
+            .join("\n")
+        : "";
+      setQuotationDetailsText(detailsText);
+      setQuotationDetailsChanged(false);
+      setFloorsCount(String(quote.floorsCount ?? ""));
+      setUnitsPerFloor(String(quote.unitsPerFloor ?? ""));
+      setFloorStart(String(quote.floorStart ?? "1"));
+      setFloorEnd(String(quote.floorEnd ?? ""));
+      setUnitStart(String(quote.unitStart ?? "101"));
+      setUnitEnd(String(quote.unitEnd ?? ""));
+      const toTitle = (value?: string | null) =>
+        (value || "").replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+      const nextProjectType = toTitle(quote.projectType) === "Renovations" ? "Renovations" : "New Build";
+      const nextPropertyType = toTitle(quote.propertyType) === "Commercial" ? "Commercial" : "Residential";
+      const nextUnitType = toTitle(quote.unitType) === "Apartment" ? "Apartment" : "House";
+      setProjectType(nextProjectType);
+      setPropertyType(nextPropertyType);
+      setUnitType(nextUnitType);
+      setAppliedDiscountPercent(
+        quote.subtotal > 0 ? (Number(quote.discountAmount || 0) / Number(quote.subtotal)) * 100 : 0,
+      );
+      setWorkGroups([{
+        id: `saved-${quote.id}`,
+        title: "Saved Services",
+        expanded: true,
+        items: (Array.isArray(quote.tasks) ? quote.tasks : []).map((task) => ({
+          id: task.id,
+          title: task.title,
+          quantity: String(task.quantity ?? 1),
+          unitOptions: [{ unit: task.unit || "each", price: Number(task.unitPrice || 0) }],
+          selectedUnit: task.unit || "each",
+          selectedUnitPrice: Number(task.unitPrice || 0),
+          selected: true,
+          isCustom: false,
+          description: task.description || undefined,
+          estimatedHours: task.estimatedHours != null ? String(task.estimatedHours) : undefined,
+          scopeChecklist: Array.isArray(task.scopeChecklist) ? task.scopeChecklist : undefined,
+          locationMode: task.locationMode || undefined,
+          selectedFloorNumbers: Array.isArray(task.selectedFloorNumbers) ? task.selectedFloorNumbers : undefined,
+          selectedUnitNames: Array.isArray(task.selectedUnitNames) ? task.selectedUnitNames : undefined,
+          plannedLocationKeys: Array.isArray(task.plannedLocationKeys) ? task.plannedLocationKeys : undefined,
+        })),
+      }]);
+      setStep(1);
+      setActiveTab("builder");
+    } catch (error: any) {
+      toast.error(error?.message || "Unable to open this quote.");
+    }
+  };
+
   const quoteParams = {
     companyName,
     projectName,
@@ -383,111 +568,27 @@ export default function ManagerQuotesScreen() {
       toast.error("Client email is required to send the quote.");
       return;
     }
+    if (buildEstimatePayload().tasks.length === 0) {
+      toast.error("Please select or add at least one service/task.");
+      return;
+    }
 
     try {
       setIsGeneratingQuote(true);
 
-      const selectedTasks = workGroups.flatMap((group) =>
-        group.items
-          .filter((item) => item.selected)
-          .map((item, index) => ({
-            title: item.title,
-            description: item.description,
-            quantity: Number(item.quantity) || 1,
-            unit: item.selectedUnit || "each",
-            unitPrice: Number(item.selectedUnitPrice) || 0,
-            estimatedHours: item.estimatedHours
-              ? Number(item.estimatedHours)
-              : estimatedTime
-                ? Number(estimatedTime) || undefined
-                : undefined,
-            sortOrder: index,
-            scopeChecklist: item.scopeChecklist,
-            locationMode:
-              item.locationMode ||
-              (item.plannedLocationKeys && item.plannedLocationKeys.length > 0
-                ? "selected"
-                : "all"),
-            selectedFloorNumbers: item.selectedFloorNumbers,
-            selectedUnitNames: item.selectedUnitNames,
-            plannedLocationKeys: item.plannedLocationKeys,
-          }))
-      );
-
-      if (selectedTasks.length === 0) {
-        toast.error("Please select or add at least one service/task.");
-        setIsGeneratingQuote(false);
-        return;
-      }
-
-      const createdQuote = await createQuoteEstimate({
-        companyId,
-        projectName: projectName.trim(),
-        clientName: clientName.trim(),
-        clientEmail: resolvedEmail,
-        clientPhone: phoneNumber.trim() || undefined,
-        projectAddress: projectAddress.trim(),
-        projectType: projectType.toLowerCase().replace(/\s+/g, "_"),
-        propertyType: propertyType.toLowerCase().replace(/\s+/g, "_"),
-        unitType: unitType.toLowerCase().replace(/\s+/g, "_"),
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        floorsCount:
-          floorStart && floorEnd
-            ? Number(floorEnd) - Number(floorStart) + 1
-            : floorsCount
-              ? Number(floorsCount)
-              : undefined,
-        unitsPerFloor:
-          unitStart && unitEnd
-            ? Number(unitEnd) - Number(unitStart) + 1
-            : unitsPerFloor
-              ? Number(unitsPerFloor)
-              : undefined,
-        floorStart: floorStart ? Number(floorStart) : undefined,
-        floorEnd: floorEnd ? Number(floorEnd) : undefined,
-        unitStart: unitStart ? Number(unitStart) : undefined,
-        unitEnd: unitEnd ? Number(unitEnd) : undefined,
-        discountAmount: discountAmount || 0,
-        tasks: selectedTasks,
-      });
+      const createdQuote = await handleSaveDraft();
+      if (!createdQuote) return;
+      await sendQuoteEstimate(createdQuote.id);
 
       const resolvedQuoteNumber =
         createdQuote?.quoteNumber ||
         (createdQuote as any)?.quote?.quoteNumber ||
         "";
-      const displayQuoteNumber = resolvedQuoteNumber || "Estimate";
       const pdfFile = await createQuotePdf({
         ...quoteParams,
         quoteNumber: resolvedQuoteNumber || undefined,
       });
       const pdfName = `${resolvedQuoteNumber || "quote"}.pdf`;
-
-      try {
-        await sendManagerQuoteMail({
-          clientEmail: resolvedEmail,
-          clientName: clientName.trim(),
-          subject: `Quotation #${displayQuoteNumber}: ${projectName.trim()}`,
-          body: `Dear ${clientName.trim()},
-
-Please find attached your official quotation (${displayQuoteNumber}) for ${projectName.trim()}.
-
-Project: ${projectName.trim()}
-Address: ${projectAddress.trim()}
-Type: ${projectType} • ${propertyType} • ${unitType}
-Structure: Floors ${floorStart || "1"}-${floorEnd || floorStart || "1"}, Units ${unitStart || "1"}-${unitEnd || unitStart || "1"}
-Estimated Total: $${finalTotal.toFixed(2)}
-
-Best regards,
-${companyName || "Finis"}`,
-        }, {
-          uri: pdfFile.uri,
-          name: pdfName,
-          type: "application/pdf",
-        });
-      } catch (mailErr) {
-        console.warn("Mail sending warning:", mailErr);
-      }
 
       void queryClient.invalidateQueries({ queryKey: ["admin", "quote-estimates"] });
 
@@ -641,6 +742,58 @@ ${companyName || "Finis"}`,
     );
   };
 
+  const resetQuoteBuilder = () => {
+    setEditingQuote(null);
+    setStep(1);
+    setCompanyId("");
+    setProjectName("");
+    setClientName("");
+    setProjectAddress("");
+    setPhoneNumber("");
+    setEmail("");
+    setEstimatedTime("");
+    setQuotationDetailsText("");
+    setQuotationDetailsChanged(false);
+    setStartDate("");
+    setEndDate("");
+    setFloorsCount("");
+    setUnitsPerFloor("");
+    setFloorStart("1");
+    setFloorEnd("");
+    setUnitStart("101");
+    setUnitEnd("");
+    setWorkGroups([]);
+    setAppliedDiscountPercent(0);
+    setActiveTab("builder");
+  };
+
+  const handleQuoteStatusAction = (
+    quote: QuoteEstimateResponse,
+    action: "reject" | "cancel",
+  ) => {
+    Alert.alert(
+      `${action === "reject" ? "Reject" : "Cancel"} Quote`,
+      `Are you sure you want to ${action} #${quote.quoteNumber}?`,
+      [
+        { text: "Keep", style: "cancel" },
+        {
+          text: action === "reject" ? "Reject" : "Cancel",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              if (action === "reject") await rejectQuoteEstimate(quote.id);
+              else await cancelQuoteEstimate(quote.id);
+              await queryClient.invalidateQueries({ queryKey: ["admin", "quote-estimates"] });
+              toast.success(`Quote ${action === "reject" ? "rejected" : "cancelled"}.`);
+            } catch (error: any) {
+              toast.error(error?.message || `Unable to ${action} quote.`);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleDeleteItem = (groupId: string, itemId: string) => {
     console.log("Deleting quote item:", { groupId, itemId });
 
@@ -732,113 +885,74 @@ ${companyName || "Finis"}`,
             </Text>
           </View>
 
-          {/* 6-Tab Horizontal Navigation Bar */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="mx-5 mt-4"
-            contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
-          >
-            {[
-              { id: "builder" as const, label: "Quote Builder", icon: "construct-outline" as const },
-              { id: "overview" as const, label: "Selector Guide", icon: "sparkles-outline" as const },
-              {
-                id: "quotes" as const,
-                label: "All Quotes",
-                icon: "document-text-outline" as const,
-                count: quoteEstimatesList.length,
-              },
-              {
-                id: "categories" as const,
-                label: "Categories",
-                icon: "pricetags-outline" as const,
-                count: (quoteCategoriesQuery.data || []).length,
-              },
-              {
-                id: "measurements" as const,
-                label: "Measurements",
-                icon: "speedometer-outline" as const,
-                count: (quoteSelectors?.measurementTypes || []).length,
-              },
-              { id: "items" as const, label: "Work Items", icon: "layers-outline" as const },
-            ].map((tab) => {
-              const isSelected = activeTab === tab.id;
-              return (
-                <Pressable
-                  key={tab.id}
-                  onPress={() => {
-                    setActiveTab(tab.id);
-                    if (tab.id === "quotes") void quoteEstimatesQuery.refetch();
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 6,
-                    borderRadius: 14,
-                    paddingHorizontal: 16,
-                    paddingVertical: 10,
-                    backgroundColor: isSelected ? "#1F5577" : "#FFFFFF",
-                    borderWidth: 1,
-                    borderColor: isSelected ? "#1F5577" : "#D7E0E8",
-                    elevation: isSelected ? 2 : 0,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: isSelected ? 0.15 : 0,
-                    shadowRadius: 2,
-                  }}
-                >
-                  <Ionicons
-                    name={tab.icon}
-                    size={15}
-                    color={isSelected ? "#FFFFFF" : "#64748B"}
-                  />
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "600",
-                      color: isSelected ? "#FFFFFF" : "#64748B",
-                    }}
-                  >
-                    {tab.label}
+          <View className="mx-5 mt-5 flex-row rounded-[14px] border border-[#CBD5E1] bg-white p-1">
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setActiveTab("builder")}
+              className={`h-11 flex-1 flex-row items-center justify-center gap-2 rounded-[10px] ${activeTab === "builder" ? "bg-[#1F5577]" : "bg-white"}`}
+            >
+              <Ionicons name="construct-outline" size={17} color={activeTab === "builder" ? "#FFFFFF" : "#64748B"} />
+              <Text className={`text-[13px] font-semibold ${activeTab === "builder" ? "text-white" : "text-[#64748B]"}`}>
+                Quote Builder
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                setActiveTab("quotes");
+                void quoteEstimatesQuery.refetch();
+              }}
+              className={`h-11 flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] ${activeTab === "quotes" ? "bg-[#1F5577]" : "bg-white"}`}
+            >
+              <Ionicons name="document-text-outline" size={17} color={activeTab === "quotes" ? "#FFFFFF" : "#64748B"} />
+              <Text className={`text-[12px] font-semibold ${activeTab === "quotes" ? "text-white" : "text-[#64748B]"}`}>
+                Saved Quotations
+              </Text>
+              {quoteEstimatesList.length > 0 ? (
+                <View className={`rounded-full px-1.5 py-0.5 ${activeTab === "quotes" ? "bg-white/20" : "bg-[#E2E8F0]"}`}>
+                  <Text className={`text-[10px] font-bold ${activeTab === "quotes" ? "text-white" : "text-[#475569]"}`}>
+                    {quoteEstimatesList.length}
                   </Text>
-                  {tab.count !== undefined && tab.count > 0 && (
-                    <View
-                      style={{
-                        borderRadius: 9999,
-                        paddingHorizontal: 7,
-                        paddingVertical: 1.5,
-                        backgroundColor: isSelected ? "rgba(255,255,255,0.25)" : "#E2E8F0",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          fontWeight: "700",
-                          color: isSelected ? "#FFFFFF" : "#475569",
-                        }}
-                      >
-                        {tab.count}
-                      </Text>
-                    </View>
-                  )}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+          </View>
 
           {activeTab === "builder" ? (
             <View className="mt-6 px-5">
               <View className="rounded-[20px] border border-[#D7E0E8] bg-white px-5 py-5 shadow-sm">
-                <Text className="text-[18px] font-semibold text-[#1F2937]">
-                  Construction Quote Builder
-                </Text>
+                <View className="flex-row items-center justify-between gap-3">
+                  <View className="flex-1">
+                    <Text className="text-[18px] font-semibold text-[#1F2937]">
+                      Construction Quote Builder
+                    </Text>
+                    {editingQuote ? (
+                      <Text className="mt-1 text-[12px] font-semibold text-[#1F5577]">
+                        Editing #{editingQuote.quoteNumber}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => void handleSaveDraft()}
+                    disabled={isSavingDraft || isGeneratingQuote}
+                    className="min-w-[96px] flex-row items-center justify-center rounded-[11px] border border-[#1F5577] bg-white px-3 py-2.5"
+                  >
+                    {isSavingDraft ? <ActivityIndicator size="small" color="#1F5577" /> : (
+                      <Text className="text-[12px] font-semibold text-[#1F5577]">Save Draft</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
                 <View className="mt-5">
-                  <QuoteStepIndicator currentStep={step} totalSteps={3} />
+                  <QuoteStepIndicator currentStep={step} totalSteps={6} />
+                  <Text className="mt-3 text-center text-[12px] font-bold uppercase tracking-wider text-[#1F5577]">
+                    {quotationStepLabels[step - 1]}
+                  </Text>
                 </View>
               </View>
 
               {step === 1 ? (
                 <QuoteBuilderForm
+                  mode="project"
                   companyName={companyName}
                   companyId={companyId}
                   isCompaniesLoading={companiesQuery.isLoading}
@@ -910,6 +1024,118 @@ ${companyName || "Finis"}`,
                   }}
                 />
               ) : step === 2 ? (
+                <View className="rounded-[20px] border border-[#D7E0E8] bg-white p-5">
+                  <Text className="text-[18px] font-bold text-[#1F2937]">Quotation Details & Terms</Text>
+                  <Text className="mt-1 text-[13px] leading-5 text-[#64748B]">
+                    Add scope of work, warranties, exclusions, and custom quotation clauses.
+                  </Text>
+                  <TextInput
+                    value={quotationDetailsText}
+                    onChangeText={(value) => {
+                      setQuotationDetailsText(value);
+                      setQuotationDetailsChanged(true);
+                    }}
+                    placeholder="Enter quotation details and terms..."
+                    placeholderTextColor="#94A3B8"
+                    multiline
+                    textAlignVertical="top"
+                    className="mt-4 min-h-[220px] rounded-[14px] border border-[#CBD5E1] bg-[#F8FAFC] p-4 text-[14px] leading-6 text-[#1F2937]"
+                  />
+                  <View className="mt-5 flex-row gap-3">
+                    <TouchableOpacity onPress={() => setStep(1)} className="h-[52px] flex-1 items-center justify-center rounded-[13px] border border-[#CBD5E1] bg-white">
+                      <Text className="font-semibold text-[#475569]">Back</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setStep(3)} className="h-[52px] flex-1 items-center justify-center rounded-[13px] bg-[#1F5577]">
+                      <Text className="font-semibold text-white">Next</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : step === 3 ? (
+                <QuoteBuilderForm
+                  mode="building"
+                  companyName={companyName}
+                  companyId={companyId}
+                  isCompaniesLoading={companiesQuery.isLoading}
+                  onOpenCompanyPicker={() => setCompanySheetVisible(true)}
+                  projectName={projectName}
+                  setProjectName={setProjectName}
+                  clientName={clientName}
+                  setClientName={setClientName}
+                  projectAddress={projectAddress}
+                  setProjectAddress={setProjectAddress}
+                  phoneNumber={phoneNumber}
+                  setPhoneNumber={setPhoneNumber}
+                  email={email}
+                  setEmail={setEmail}
+                  estimatedTime={estimatedTime}
+                  setEstimatedTime={setEstimatedTime}
+                  startDate={startDate}
+                  setStartDate={setStartDate}
+                  endDate={endDate}
+                  setEndDate={setEndDate}
+                  floorsCount={floorsCount}
+                  setFloorsCount={setFloorsCount}
+                  unitsPerFloor={unitsPerFloor}
+                  setUnitsPerFloor={setUnitsPerFloor}
+                  floorStart={floorStart}
+                  setFloorStart={setFloorStart}
+                  floorEnd={floorEnd}
+                  setFloorEnd={setFloorEnd}
+                  unitStart={unitStart}
+                  setUnitStart={setUnitStart}
+                  unitEnd={unitEnd}
+                  setUnitEnd={setUnitEnd}
+                  projectType={projectType}
+                  setProjectType={(value) => syncCombination(value, propertyType, unitType)}
+                  propertyType={propertyType}
+                  setPropertyType={(value) => syncCombination(projectType, value, unitType)}
+                  unitType={unitType}
+                  setUnitType={(value) => syncCombination(projectType, propertyType, value)}
+                  onBack={() => setStep(2)}
+                  onNext={() => {
+                    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+                      toast.error("End date cannot be earlier than start date.");
+                      return;
+                    }
+                    if (floorsCount && Number(floorsCount) < 1) {
+                      toast.error("Total floors must be at least 1.");
+                      return;
+                    }
+                    if (unitsPerFloor && Number(unitsPerFloor) < 1) {
+                      toast.error("Units per floor must be at least 1.");
+                      return;
+                    }
+                    setStep(4);
+                  }}
+                />
+              ) : step === 4 ? (
+                <View className="rounded-[20px] border border-[#D7E0E8] bg-white p-5">
+                  <Text className="text-[18px] font-bold text-[#1F2937]">Workable Area</Text>
+                  <Text className="mt-1 text-[13px] leading-5 text-[#64748B]">
+                    Review the floors and units generated from the building details.
+                  </Text>
+                  <View className="mt-4 gap-3">
+                    {plannedFloorNumbers.length === 0 ? (
+                      <Text className="rounded-[12px] bg-[#F8FAFC] p-4 text-[13px] text-[#64748B]">No floor range configured.</Text>
+                    ) : plannedFloorNumbers.map((floor) => (
+                      <View key={floor} className="rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                        <Text className="font-bold text-[#1F2937]">Floor {floor}</Text>
+                        <Text className="mt-1 text-[12px] text-[#64748B]">
+                          {getPlannedUnitNames(floor).length > 0 ? getPlannedUnitNames(floor).join(", ") : "No units configured"}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View className="mt-5 flex-row gap-3">
+                    <TouchableOpacity onPress={() => setStep(3)} className="h-[52px] flex-1 items-center justify-center rounded-[13px] border border-[#CBD5E1] bg-white">
+                      <Text className="font-semibold text-[#475569]">Back</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setStep(5)} className="h-[52px] flex-1 items-center justify-center rounded-[13px] bg-[#1F5577]">
+                      <Text className="font-semibold text-white">Next</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : step === 5 ? (
                 <QuoteWorkItemsStep
                   catalogTitle={
                     quoteCatalogGroups.length
@@ -950,8 +1176,8 @@ ${companyName || "Finis"}`,
                       updateQuoteWorkItemUnit(current, groupId, itemId, unit),
                     )
                   }
-                  onBack={() => setStep(1)}
-                  onNext={() => setStep(3)}
+                  onBack={() => setStep(4)}
+                  onNext={() => setStep(6)}
                 />
               ) : (
                 <QuoteFinalReviewStep
@@ -982,7 +1208,7 @@ ${companyName || "Finis"}`,
                   projectDetailsLabel={projectDetailsLabel}
                   projectMetaLabel={projectMetaLabel}
                   onEditSummary={() => setStep(1)}
-                  onEditWorkItems={() => setStep(2)}
+                  onEditWorkItems={() => setStep(5)}
                   onOpenDiscount={() => {
                     setDiscountPercentInput(String(appliedDiscountPercent || 0));
                     setDiscountModalVisible(true);
@@ -999,16 +1225,15 @@ ${companyName || "Finis"}`,
               <View className="mb-4 flex-row items-center justify-between gap-3">
                 <View className="flex-1 pr-2">
                   <Text className="text-[18px] font-bold text-[#1F2937]">
-                    Quote Estimates
+                    Saved Quotations
                   </Text>
                   <Text className="mt-0.5 text-[12px] text-[#64748B]">
-                    Manage estimates and convert accepted quotes to projects
+                    View, edit, send, or manage quotations created by your admin account
                   </Text>
                 </View>
                 <Pressable
                   onPress={() => {
-                    setActiveTab("builder");
-                    setStep(1);
+                    resetQuoteBuilder();
                   }}
                   style={{
                     flexDirection: "row",
@@ -1093,8 +1318,7 @@ ${companyName || "Finis"}`,
                     activeOpacity={0.85}
                     onPress={() => {
                       setSelectedStatusFilter("all");
-                      setActiveTab("builder");
-                      setStep(1);
+                      resetQuoteBuilder();
                     }}
                     className="mt-5 flex-row items-center gap-2 rounded-[12px] bg-[#1F5577] px-5 py-3"
                   >
@@ -1252,23 +1476,37 @@ ${companyName || "Finis"}`,
                           </View>
 
                           {/* Delete Estimate Button - safely positioned inside card */}
-                          <TouchableOpacity
-                            activeOpacity={0.8}
-                            onPress={() => handleDeleteEstimate(quote)}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            style={{
-                              width: 36,
-                              height: 36,
-                              alignItems: "center",
-                              justifyContent: "center",
-                              borderRadius: 10,
-                              borderWidth: 1,
-                              borderColor: "#FECACA",
-                              backgroundColor: "#FEF2F2",
-                            }}
-                          >
-                            <Ionicons name="trash-outline" size={16} color="#DC2626" />
-                          </TouchableOpacity>
+                          <View className="flex-row gap-2">
+                            <TouchableOpacity
+                              activeOpacity={0.8}
+                              onPress={() => {
+                                if (quote.status === "converted" && quote.convertedProject?.id) {
+                                  router.push({
+                                    pathname: "/screens/company/projectdetails",
+                                    params: { id: quote.convertedProject.id },
+                                  });
+                                } else {
+                                  void handleOpenEstimate(quote);
+                                }
+                              }}
+                              className="h-9 flex-row items-center justify-center gap-1 rounded-[10px] border border-[#BFDBFE] bg-[#EFF6FF] px-3"
+                            >
+                              <Ionicons name="open-outline" size={15} color="#1F5577" />
+                              <Text className="text-[12px] font-semibold text-[#1F5577]">
+                                {quote.status === "converted" ? "Open Project" : "Edit"}
+                              </Text>
+                            </TouchableOpacity>
+                            {quote.status !== "converted" && (
+                              <TouchableOpacity
+                                activeOpacity={0.8}
+                                onPress={() => handleDeleteEstimate(quote)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                className="h-9 w-9 items-center justify-center rounded-[10px] border border-red-200 bg-red-50"
+                              >
+                                <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                              </TouchableOpacity>
+                            )}
+                          </View>
                         </View>
 
                         {/* Bottom Row: Actions (Send, Convert to Project or Project Created) */}
@@ -1368,6 +1606,16 @@ ${companyName || "Finis"}`,
                             <Text className="text-[13px] font-bold text-emerald-700">
                               Project Created
                             </Text>
+                          </View>
+                        ) : null}
+                        {quote.status !== "converted" && quote.status !== "cancelled" && quote.status !== "rejected" ? (
+                          <View className="mt-2 flex-row justify-end gap-3 px-1">
+                            <TouchableOpacity onPress={() => handleQuoteStatusAction(quote, "reject")}>
+                              <Text className="text-[12px] font-semibold text-red-600">Reject</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleQuoteStatusAction(quote, "cancel")}>
+                              <Text className="text-[12px] font-semibold text-slate-500">Cancel</Text>
+                            </TouchableOpacity>
                           </View>
                         ) : null}
                       </View>

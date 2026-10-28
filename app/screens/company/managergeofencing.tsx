@@ -286,9 +286,12 @@ export default function ManagerGeofencingRoute() {
     };
   }, [activePolygon]);
 
+  const isSavingZone = createGeofenceMutation.isPending || updateGeofenceMutation.isPending;
+  const canSaveZone = draftPoints.length >= 3 && !isSavingZone;
+
   if (!projectId) {
     return (
-      <SafeAreaView edges={['top','left',"right"]} className="flex-1 bg-[#E9EDF1]">
+      <SafeAreaView key="geofencing-no-project" edges={['top','left',"right"]} className="flex-1 bg-[#E9EDF1]">
         <BackTitleHeader title="Geofencing" onBack={() => router.back()} />
         <View className="mt-10 items-center px-5">
           <Text className="text-[14px] text-[#66707B]">
@@ -300,7 +303,7 @@ export default function ManagerGeofencingRoute() {
   }
 
   return (
-    <SafeAreaView edges={['top','left',"right"]} className="flex-1 bg-[#E9EDF1]">
+    <SafeAreaView key={`geofencing-project-${projectId}`} edges={['top','left',"right"]} className="flex-1 bg-[#E9EDF1]">
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 36 }}
@@ -316,7 +319,7 @@ export default function ManagerGeofencingRoute() {
         <BackTitleHeader title="Geofencing" onBack={() => router.back()} />
 
         {projectLoading && !project ? (
-          <View className="mt-10 items-center">
+          <View key="geofencing-loading" className="mt-10 items-center">
             <ActivityIndicator size="small" color="#1f3d5c" />
             <Text className="mt-2 text-xs text-slate-500">
               Loading project...
@@ -325,18 +328,22 @@ export default function ManagerGeofencingRoute() {
         ) : null}
 
         <GeofencingSummaryCard
+          key="geofencing-summary"
           onAddNewZonePress={() => {}}
           name={project?.name}
           hideProjectSelector
         />
 
-        {!isManager ? <View className="px-5 pt-2">
-          <Text className="text-[14px] text-[#66707B]">
-            Tap on the map to draw your zone. Use Undo/Clear if needed.
-          </Text>
-        </View> : null}
+        {!isManager ? (
+          <View key="geofencing-manager-hint" className="px-5 pt-2">
+            <Text className="text-[14px] text-[#66707B]">
+              Tap on the map to draw your zone. Use Undo/Clear if needed.
+            </Text>
+          </View>
+        ) : null}
 
         <GeofenceMapCard
+          key="geofencing-map"
           projectName={project?.name}
           projectSite={project?.location}
           initialPolygonCoords={
@@ -357,12 +364,12 @@ export default function ManagerGeofencingRoute() {
           reloadToken={mapReloadToken}
         />
 
-        <View className="px-5 pt-3">
+        <View key="geofencing-legend" className="px-5 pt-3">
           <MapLegend />
         </View>
 
         {isZoneEditable && !isManager ? (
-          <View className="px-5 pt-3">
+          <View key="geofencing-save-action" className="px-5 pt-3">
             <Text className="mb-2 text-[12px] text-[#66707B]">
               {draftPoints.length >= 3
                 ? `${draftPoints.length} points selected.`
@@ -370,7 +377,7 @@ export default function ManagerGeofencingRoute() {
             </Text>
             <TouchableOpacity
               activeOpacity={0.85}
-              disabled={draftPoints.length < 3 || createGeofenceMutation.isPending}
+              disabled={!canSaveZone}
               onPress={() => {
                 if (draftPoints.length < 3) {
                   return;
@@ -392,23 +399,18 @@ export default function ManagerGeofencingRoute() {
                 void createGeofenceMutation.mutateAsync(zonePayload).then(() => setDraftPoints([]));
               }}
               className={`h-[48px] items-center justify-center rounded-[12px] ${
-                draftPoints.length >= 3 &&
-                !createGeofenceMutation.isPending &&
-                !updateGeofenceMutation.isPending
-                  ? "bg-[#1D5478]"
-                  : "bg-[#AAB7C2]"
+                canSaveZone ? "bg-[#1D5478]" : "bg-[#AAB7C2]"
               }`}
             >
               <Text className="text-[15px] font-semibold text-white">
-                {createGeofenceMutation.isPending || updateGeofenceMutation.isPending
-                  ? "Saving..."
-                  : "Save Zone"}
+                {isSavingZone ? "Saving..." : "Save Zone"}
               </Text>
             </TouchableOpacity>
           </View>
         ) : null}
 
         <ZoneConfigurationCard
+          key="geofencing-zone-config"
           projectId={projectId}
           geofenceId={selectedGeofence?.id}
           zoneName={selectedGeofence?.zoneName ?? project?.name}
@@ -422,14 +424,20 @@ export default function ManagerGeofencingRoute() {
         />
 
         <LiveTrackerCard
+          key="geofencing-live-tracker"
           workersOnSite={liveTrackerStats.workersOnSite}
           outsideZone={liveTrackerStats.outsideZone}
           liveStatus={selectedGeofence ? "Live" : "No Zone"}
         />
 
-        <LocationLogsCard logs={logs} onViewFullHistory={() => setIsFullHistoryVisible(true)} />
+        <LocationLogsCard
+          key="geofencing-location-logs"
+          logs={logs}
+          onViewFullHistory={() => setIsFullHistoryVisible(true)}
+        />
 
         <ZoneViolationAlertCard
+          key="geofencing-violation-alert"
           distanceM={latestViolation?.distanceM}
           occurredAt={latestViolation?.occurredAt}
           geofenceName={latestViolation?.geofenceName}
@@ -438,12 +446,13 @@ export default function ManagerGeofencingRoute() {
         />
       </ScrollView>
 
-      <Modal
-        visible={isFullHistoryVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsFullHistoryVisible(false)}
-      >
+      {isFullHistoryVisible ? (
+        <Modal
+          visible={isFullHistoryVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setIsFullHistoryVisible(false)}
+        >
         <Pressable
           className="flex-1 justify-end bg-black/35"
           onPress={() => setIsFullHistoryVisible(false)}
@@ -500,8 +509,8 @@ export default function ManagerGeofencingRoute() {
               )}
             </ScrollView>
           </Pressable>
-        </Pressable>
       </Modal>
+      ) : null}
     </SafeAreaView>
   );
 }
