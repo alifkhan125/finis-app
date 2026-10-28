@@ -187,8 +187,8 @@ export default function ManagerQuotesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void quoteEstimatesQuery.refetch();
-    }, []),
+      void queryClient.invalidateQueries({ queryKey: ["admin", "quote-estimates"] });
+    }, [queryClient]),
   );
 
   const quoteFilterQuery = useQuery({
@@ -882,10 +882,17 @@ export default function ManagerQuotesScreen() {
           contentContainerStyle={{ paddingBottom: 360 }}
           refreshControl={
             <RefreshControl
-              refreshing={quoteFilterQuery.isRefetching || quoteEstimatesQuery.isRefetching}
+              refreshing={
+                quoteEstimatesQuery.isRefetching ||
+                (activeTab === "builder" && quoteFilterQuery.isRefetching)
+              }
               onRefresh={() => {
-                void quoteFilterQuery.refetch();
-                void quoteEstimatesQuery.refetch();
+                void queryClient.invalidateQueries({ queryKey: ["admin", "quote-estimates"] });
+                if (activeTab === "builder" && step === 1) {
+                  void queryClient.invalidateQueries({
+                    queryKey: ["manager", "quotes", projectType, propertyType, unitType],
+                  });
+                }
               }}
               tintColor="#1F5577"
               colors={["#1F5577"]}
@@ -903,7 +910,7 @@ export default function ManagerQuotesScreen() {
               activeOpacity={0.85}
               onPress={() => {
                 setActiveTab("quotes");
-                void quoteEstimatesQuery.refetch();
+                void queryClient.invalidateQueries({ queryKey: ["admin", "quote-estimates"] });
               }}
               className={`h-11 flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] ${activeTab === "quotes" ? "bg-[#1F5577]" : "bg-white"}`}
             >
@@ -976,7 +983,7 @@ export default function ManagerQuotesScreen() {
                   companyId={companyId}
                   isCompaniesLoading={companiesQuery.isLoading}
                   onOpenCompanyPicker={() => {
-                    void companiesQuery.refetch();
+                    void queryClient.invalidateQueries({ queryKey: ["companies"] });
                     setCompanySheetVisible(true);
                   }}
                   projectName={projectName}
