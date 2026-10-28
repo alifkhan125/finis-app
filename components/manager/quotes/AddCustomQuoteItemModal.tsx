@@ -27,6 +27,7 @@ type AddCustomQuoteItemModalProps = {
   getPlannedUnitNames?: (floor: number) => string[];
   workItemSuggestions?: WorkItemTemplateSuggestion[];
   onClose: () => void;
+  showFinancials?: boolean;
   onAddService: (service: {
     title: string;
     description: string;
@@ -48,6 +49,7 @@ export default function AddCustomQuoteItemModal({
   workItemSuggestions = [],
   onClose,
   onAddService,
+  showFinancials = true,
 }: AddCustomQuoteItemModalProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
@@ -159,7 +161,7 @@ export default function AddCustomQuoteItemModal({
     }
     setSelectedTemplateId(template.id);
     setTaskTitle(template.name);
-    if (template.unitCost) {
+    if (showFinancials && template.unitCost) {
       setInternalPrice(String(template.unitCost));
     }
     if (template.estimatedHours) {
@@ -250,7 +252,7 @@ export default function AddCustomQuoteItemModal({
                   >
                     {selectedTemplate
                       ? `${selectedTemplate.name}${
-                          selectedTemplate.unitCost
+                          showFinancials && selectedTemplate.unitCost
                             ? ` ($${Number(selectedTemplate.unitCost).toFixed(2)})`
                             : ""
                         }`
@@ -283,7 +285,7 @@ export default function AddCustomQuoteItemModal({
                         >
                           <Text className="text-[13px] text-[#374151]">
                             {item.name}
-                            {item.unitCost ? ` ($${Number(item.unitCost).toFixed(2)})` : ""}
+                            {showFinancials && item.unitCost ? ` ($${Number(item.unitCost).toFixed(2)})` : ""}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -341,7 +343,7 @@ export default function AddCustomQuoteItemModal({
                     className="h-[46px] rounded-[12px] border border-[#D1D5DB] bg-white px-3.5 text-[14px] text-[#111827]"
                   />
                 </View>
-                <View className="flex-1">
+                {showFinancials ? <View className="flex-1">
                   <Text className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
                     INTERNAL PRICE
                   </Text>
@@ -353,11 +355,11 @@ export default function AddCustomQuoteItemModal({
                     placeholderTextColor="#9CA3AF"
                     className="h-[46px] rounded-[12px] border border-[#D1D5DB] bg-white px-3.5 text-[14px] text-[#111827]"
                   />
-                </View>
+                </View> : null}
               </View>
 
               {/* Card 6: SUBTOTAL */}
-              <View className="mb-4 rounded-[14px] border border-[#DBEAFE] bg-[#EFF6FF] px-4 py-3">
+              {showFinancials ? <View className="mb-4 rounded-[14px] border border-[#DBEAFE] bg-[#EFF6FF] px-4 py-3">
                 <View className="flex-row items-center justify-between">
                   <Text className="text-[11px] font-black uppercase tracking-wider text-[#6B7280]">
                     SUBTOTAL
@@ -369,7 +371,7 @@ export default function AddCustomQuoteItemModal({
                 <Text className="mt-0.5 text-[12px] text-[#6B7280]">
                   Per selected floor/unit: ${priceNumber.toFixed(2)} x {locationCount}
                 </Text>
-              </View>
+              </View> : null}
 
               {/* Checkbox 7: Allow Subtasks */}
               <TouchableOpacity

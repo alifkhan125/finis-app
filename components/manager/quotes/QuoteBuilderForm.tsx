@@ -30,8 +30,6 @@ type QuoteBuilderFormProps = {
   email: string;
   setEmail: (value: string) => void;
   defaultEmail?: string;
-  estimatedTime: string;
-  setEstimatedTime: (value: string) => void;
   startDate: string;
   setStartDate: (value: string) => void;
   endDate: string;
@@ -74,8 +72,6 @@ export default function QuoteBuilderForm({
   setPhoneNumber,
   email,
   setEmail,
-  estimatedTime,
-  setEstimatedTime,
   startDate,
   setStartDate,
   endDate,
@@ -210,13 +206,6 @@ export default function QuoteBuilderForm({
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
-        />
-        <QuoteField
-          label="Estimated Hours"
-          placeholder="Enter estimated hours (e.g. 40)"
-          value={estimatedTime}
-          onChangeText={setEstimatedTime}
-          keyboardType="numeric"
         />
       </QuoteSectionCard>
 

@@ -27,6 +27,7 @@ type QuoteWorkItemsStepProps = {
   onBack: () => void;
   estimatedTime: string;
   onChangeEstimatedTime: (value: string) => void;
+  showFinancials?: boolean;
 };
 
 export default function QuoteWorkItemsStep({
@@ -47,6 +48,7 @@ export default function QuoteWorkItemsStep({
   onBack,
   estimatedTime,
   onChangeEstimatedTime,
+  showFinancials = true,
 }: QuoteWorkItemsStepProps) {
   return (
     <>
@@ -85,6 +87,7 @@ export default function QuoteWorkItemsStep({
           <QuoteWorkGroupCard
             key={group.id}
             group={group}
+            showFinancials={showFinancials}
             onToggleGroup={() => onToggleGroup(group.id)}
             onToggleItem={(itemId) => onToggleItem(group.id, itemId)}
             onEditItem={(itemId) => onEditItem(group.id, itemId)}
@@ -110,11 +113,19 @@ export default function QuoteWorkItemsStep({
         className="mb-4 h-[58px] rounded-[16px] border border-[#D5DEE8] bg-[#F6F8FB] px-4 text-[18px] text-[#667085]"
       />
 
-      <QuoteWorkTotalsBar
-        itemsSelected={itemsSelected}
-        estimatedTotal={estimatedTotal}
-        subtotal={subtotal}
-      />
+      {showFinancials ? (
+        <QuoteWorkTotalsBar
+          itemsSelected={itemsSelected}
+          estimatedTotal={estimatedTotal}
+          subtotal={subtotal}
+        />
+      ) : (
+        <View className="rounded-[14px] border border-[#D7E0E8] bg-[#F8FAFC] px-4 py-3">
+          <Text className="text-[13px] font-medium text-[#475467]">
+            {itemsSelected} services selected. Pricing will be added by your admin.
+          </Text>
+        </View>
+      )}
 
       <TouchableOpacity
         activeOpacity={0.88}

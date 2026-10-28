@@ -36,6 +36,7 @@ type EditQuoteItemModalProps = {
   onChangeScopeChecklist?: (items: string[]) => void;
   onClose: () => void;
   onSave: () => void;
+  showFinancials?: boolean;
 };
 
 export default function EditQuoteItemModal({
@@ -62,6 +63,7 @@ export default function EditQuoteItemModal({
   onChangeScopeChecklist,
   onClose,
   onSave,
+  showFinancials = true,
 }: EditQuoteItemModalProps) {
   const [newChecklistText, setNewChecklistText] = useState("");
 
@@ -239,7 +241,7 @@ export default function EditQuoteItemModal({
 
               {/* Unit Price & Hours in 2 columns */}
               <View className="mt-3 flex-row gap-3">
-                <View className="flex-1">
+                {showFinancials ? <View className="flex-1">
                   <Text className="mb-1.5 text-[12px] font-semibold text-[#475467]">
                     Unit Price ($)
                   </Text>
@@ -254,7 +256,7 @@ export default function EditQuoteItemModal({
                       className="flex-1 text-[14px] text-[#1F2937]"
                     />
                   </View>
-                </View>
+                </View> : null}
                 <View className="flex-1">
                   <Text className="mb-1.5 text-[12px] font-semibold text-[#475467]">
                     Hours / Unit

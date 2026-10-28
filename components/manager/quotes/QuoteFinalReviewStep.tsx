@@ -43,6 +43,7 @@ type QuoteFinalReviewStepProps = {
   onGeneratePdf: () => void;
   onEmailQuote: () => void;
   isGenerating?: boolean;
+  showFinancials?: boolean;
 };
 
 function DetailRow({
@@ -110,6 +111,7 @@ export default function QuoteFinalReviewStep({
   onGeneratePdf,
   onEmailQuote,
   isGenerating = false,
+  showFinancials = true,
 }: QuoteFinalReviewStepProps) {
   const selectedGroups = workGroups
     .map((group) => ({
@@ -195,20 +197,21 @@ export default function QuoteFinalReviewStep({
                           {item.title}
                         </Text>
                         <Text className="mt-1 text-[13px] text-[#66707B]">
-                          {item.quantity} {item.selectedUnit} × {formatCurrency(item.selectedUnitPrice)}
+                          {item.quantity} {item.selectedUnit}
+                          {showFinancials ? ` × ${formatCurrency(item.selectedUnitPrice)}` : ""}
                         </Text>
                       </View>
-                      <Text className="text-[13px] font-medium text-[#1F2937]">
-                        {formatCurrency(
-                          (Number(item.quantity) || 0) * item.selectedUnitPrice,
-                        )}
-                      </Text>
+                      {showFinancials ? (
+                        <Text className="text-[13px] font-medium text-[#1F2937]">
+                          {formatCurrency((Number(item.quantity) || 0) * item.selectedUnitPrice)}
+                        </Text>
+                      ) : null}
                     </View>
                   ))}
                 </View>
               );
             })}
-            <View className="mt-1 border-t border-[#E5EAF0] pt-4">
+            {showFinancials ? <View className="mt-1 border-t border-[#E5EAF0] pt-4">
               <View className="flex-row items-center justify-between">
                 <Text className="text-[16px] font-medium text-[#1F2937]">
                   Work Items Subtotal
@@ -217,8 +220,8 @@ export default function QuoteFinalReviewStep({
                   {formatCurrency(subtotal)}
                 </Text>
               </View>
-            </View>
-            {discountAmount > 0 ? (
+            </View> : null}
+            {showFinancials && discountAmount > 0 ? (
               <View className="mt-3 flex-row items-center justify-between rounded-[12px] bg-[#ECFDF3] px-3 py-3">
                 <Text className="text-[13px] font-medium text-[#15803D]">
                   Discount Applied
@@ -267,14 +270,12 @@ export default function QuoteFinalReviewStep({
           label="Quote Type"
           value={`${projectType} • ${propertyType} • ${unitType}`}
         />
-        <DetailRow
-          icon="cash-outline"
-          label="Final Total"
-          value={formatCurrency(finalTotal)}
-        />
+        {showFinancials ? (
+          <DetailRow icon="cash-outline" label="Final Total" value={formatCurrency(finalTotal)} />
+        ) : null}
       </QuoteReviewCard>
 
-      <QuoteReviewCard title=" ">
+      {showFinancials ? <QuoteReviewCard title=" ">
         <TouchableOpacity
           activeOpacity={0.88}
           onPress={onOpenDiscount}
@@ -300,7 +301,14 @@ export default function QuoteFinalReviewStep({
             {isGenerating ? "Generating..." : "Generate Quote and Send"}
           </Text>
         </TouchableOpacity>
-      </QuoteReviewCard>
+      </QuoteReviewCard> : (
+        <View className="rounded-[16px] border border-[#D7E0E8] bg-[#F8FAFC] px-4 py-4">
+          <Text className="text-[14px] font-semibold text-[#344054]">Ready for admin review</Text>
+          <Text className="mt-1 text-[13px] leading-5 text-[#667085]">
+            Save this draft. Your admin will add pricing and send the final quotation.
+          </Text>
+        </View>
+      )}
     </>
   );
 }

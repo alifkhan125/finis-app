@@ -53,6 +53,7 @@ type QuoteWorkItemCardProps = {
   onDelete: () => void;
   onChangeQuantity: (value: string) => void;
   onSelectUnit: (unit: string) => void;
+  showFinancials?: boolean;
 };
 
 function formatUnitPrice(value: number) {
@@ -69,6 +70,7 @@ export default function QuoteWorkItemCard({
   onDelete,
   onChangeQuantity,
   onSelectUnit,
+  showFinancials = true,
 }: QuoteWorkItemCardProps) {
   const unitOptions = "unitOptions" in item ? item.unitOptions ?? [] : [];
   const selectedUnit =
@@ -168,24 +170,19 @@ export default function QuoteWorkItemCard({
         ) : null}
       </TouchableOpacity>
 
-      <Text className="mb-2 text-[12px] font-medium text-[#344054]">
-        Unit Price
-      </Text>
-      <View className="mb-4 h-[54px] flex-row items-center rounded-[14px] border border-[#DDE3EA] bg-[#F8FAFC] px-4">
-        <Text className="mr-2 text-[17px] text-[#98A2B3]">$</Text>
-        <Text className="text-[17px] text-[#475467]">
-          {formatUnitPrice(selectedUnitPrice)}
-        </Text>
-      </View>
-
-      <Text className="mb-2 text-[12px] font-medium text-[#344054]">
-        Subtotal
-      </Text>
-      <View className="h-[54px] justify-center rounded-[14px] border border-[#DDE3EA] bg-[#F8FAFC] px-4">
-        <Text className="text-[17px] font-semibold text-[#101828]">
-          {formatCurrency(subtotal)}
-        </Text>
-      </View>
+      {showFinancials ? (
+        <>
+          <Text className="mb-2 text-[12px] font-medium text-[#344054]">Unit Price</Text>
+          <View className="mb-4 h-[54px] flex-row items-center rounded-[14px] border border-[#DDE3EA] bg-[#F8FAFC] px-4">
+            <Text className="mr-2 text-[17px] text-[#98A2B3]">$</Text>
+            <Text className="text-[17px] text-[#475467]">{formatUnitPrice(selectedUnitPrice)}</Text>
+          </View>
+          <Text className="mb-2 text-[12px] font-medium text-[#344054]">Subtotal</Text>
+          <View className="h-[54px] justify-center rounded-[14px] border border-[#DDE3EA] bg-[#F8FAFC] px-4">
+            <Text className="text-[17px] font-semibold text-[#101828]">{formatCurrency(subtotal)}</Text>
+          </View>
+        </>
+      ) : null}
     </View>
   );
 }

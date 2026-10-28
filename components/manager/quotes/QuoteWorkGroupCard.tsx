@@ -20,6 +20,7 @@ type QuoteWorkGroupCardProps = {
   onDeleteItem: (itemId: string) => void;
   onChangeItemQuantity: (itemId: string, value: string) => void;
   onSelectItemUnit: (itemId: string, unit: string) => void;
+  showFinancials?: boolean;
 };
 
 export default function QuoteWorkGroupCard({
@@ -30,6 +31,7 @@ export default function QuoteWorkGroupCard({
   onDeleteItem,
   onChangeItemQuantity,
   onSelectItemUnit,
+  showFinancials = true,
 }: QuoteWorkGroupCardProps) {
   return (
     <View className="mb-4 rounded-[18px] border border-[#E3E8EE] bg-[#FCFDFE] px-4 py-4 shadow-sm">
@@ -59,6 +61,7 @@ export default function QuoteWorkGroupCard({
             <QuoteWorkItemCard
               key={`${group.id}-${item.id}-${index}`}
               item={item}
+              showFinancials={showFinancials}
               onToggle={() => onToggleItem(item.id)}
               onEdit={() => onEditItem(item.id)}
               onDelete={() => onDeleteItem(item.id)}

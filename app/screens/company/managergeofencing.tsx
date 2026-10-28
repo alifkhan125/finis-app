@@ -509,6 +509,7 @@ export default function ManagerGeofencingRoute() {
               )}
             </ScrollView>
           </Pressable>
+        </Pressable>
       </Modal>
       ) : null}
     </SafeAreaView>

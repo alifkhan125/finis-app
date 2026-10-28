@@ -1,4 +1,7 @@
 import { api } from "@/lib/api/client";
+import * as FileSystem from "expo-file-system/legacy";
+import { API_BASE_URL } from "@/lib/config";
+import { getCurrentAccessToken } from "@/lib/auth-token";
 
 export type ManagerQuote = {
   id: string;
@@ -578,6 +581,27 @@ export async function sendQuoteEstimate(id: string) {
   }>(`/admin/quote-estimates/${id}/send`);
 
   return data;
+}
+
+export async function downloadQuoteEstimatePdf(id: string, quoteNumber?: string) {
+  const token = getCurrentAccessToken();
+  const safeName = (quoteNumber || `quotation-${id}`)
+    .replace(/[^a-zA-Z0-9_-]/g, "-");
+  const fileUri = `${FileSystem.cacheDirectory ?? ""}${safeName}.pdf`;
+  const result = await FileSystem.downloadAsync(
+    `${API_BASE_URL}/admin/quote-estimates/${id}/pdf`,
+    fileUri,
+    {
+      headers: {
+        Accept: "application/pdf",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    },
+  );
+  if (result.status < 200 || result.status >= 300) {
+    throw new Error("Failed to download quotation PDF");
+  }
+  return { uri: result.uri, name: `${safeName}.pdf`, mimeType: "application/pdf" };
 }
 
 export async function acceptAndCreateProject(

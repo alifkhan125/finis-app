@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 
 import {
   ActivityIndicator,
@@ -29,6 +30,7 @@ import {
   updateQuoteEstimate,
   getQuoteEstimate,
   sendQuoteEstimate,
+  downloadQuoteEstimatePdf,
   acceptAndCreateProject,
   getQuoteEstimates,
   deleteQuoteEstimate,
@@ -60,7 +62,6 @@ import {
   type QuotePropertyType,
   type QuoteUnitType,
 } from "./quotes/quoteTypes";
-import { createQuotePdf } from "./quotes/quotePdf";
 import QuoteStepIndicator from "./quotes/QuoteStepIndicator";
 import type { QuoteSelectedWorkGroup } from "./quotes/QuoteWorkGroupCard";
 import QuoteWorkItemsStep from "./quotes/QuoteWorkItemsStep";
@@ -106,7 +107,7 @@ export default function ManagerQuotesScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
-  const [activeTab, setActiveTab] = useState<QuoteTabId>("builder");
+  const [activeTab, setActiveTab] = useState<QuoteTabId>("quotes");
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [companyId, setCompanyId] = useState("");
   const [companySheetVisible, setCompanySheetVisible] = useState(false);
@@ -184,6 +185,12 @@ export default function ManagerQuotesScreen() {
     queryFn: () => getQuoteEstimates(),
   });
 
+  useFocusEffect(
+    useCallback(() => {
+      void quoteEstimatesQuery.refetch();
+    }, []),
+  );
+
   const quoteFilterQuery = useQuery({
     queryKey: ["manager", "quotes", projectType, propertyType, unitType],
     queryFn: () =>
@@ -234,6 +241,8 @@ export default function ManagerQuotesScreen() {
   const defaultPhone = currentUser?.phone || "";
   const companiesQuery = useCompaniesQuery(1, 100);
   const companies = companiesQuery.data?.data ?? [];
+  const isManager = currentUser?.role === "manager";
+  const canManageQuoteFinancials = currentUser?.role === "admin" || currentUser?.role === "super_admin";
   const selectedCompany = companies.find((company) => company.id === companyId);
   const companyName = selectedCompany?.name ?? "";
   const backendQuotes = quoteFilterQuery.data?.quotes ?? [];
@@ -269,14 +278,14 @@ export default function ManagerQuotesScreen() {
           id: item.id || group.category.id + "-" + itemIndex,
           title: item.name,
           quantity: "1",
-          unitOptions: [{ unit: item.measurementType ?? "pcs", price: Number((item as any).unitCost ?? (item as any).unitPrice ?? 0) }],
+          unitOptions: [{ unit: item.measurementType ?? "pcs", price: canManageQuoteFinancials ? Number((item as any).unitCost ?? (item as any).unitPrice ?? 0) : 0 }],
           selectedUnit: item.measurementType ?? "pcs",
-          selectedUnitPrice: Number((item as any).unitCost ?? (item as any).unitPrice ?? 0),
+          selectedUnitPrice: canManageQuoteFinancials ? Number((item as any).unitCost ?? (item as any).unitPrice ?? 0) : 0,
           selected: false,
           isCustom: false,
         })),
       })),
-    [quoteCatalogGroups],
+    [canManageQuoteFinancials, quoteCatalogGroups],
   );
 
   useEffect(() => {
@@ -312,7 +321,7 @@ export default function ManagerQuotesScreen() {
           description: item.description,
           quantity: Number(item.quantity) || 1,
           unit: item.selectedUnit || "each",
-          unitPrice: Number(item.selectedUnitPrice) || 0,
+          unitPrice: canManageQuoteFinancials ? Number(item.selectedUnitPrice) || 0 : 0,
           estimatedHours: item.estimatedHours
             ? Number(item.estimatedHours)
             : estimatedTime
@@ -584,11 +593,11 @@ export default function ManagerQuotesScreen() {
         createdQuote?.quoteNumber ||
         (createdQuote as any)?.quote?.quoteNumber ||
         "";
-      const pdfFile = await createQuotePdf({
-        ...quoteParams,
-        quoteNumber: resolvedQuoteNumber || undefined,
-      });
-      const pdfName = `${resolvedQuoteNumber || "quote"}.pdf`;
+      const pdfFile = await downloadQuoteEstimatePdf(
+        createdQuote.id,
+        resolvedQuoteNumber || undefined,
+      );
+      const pdfName = pdfFile.name;
 
       void queryClient.invalidateQueries({ queryKey: ["admin", "quote-estimates"] });
 
@@ -743,6 +752,10 @@ export default function ManagerQuotesScreen() {
   };
 
   const resetQuoteBuilder = () => {
+    if (isManager && !companiesQuery.isLoading && companies.length === 0) {
+      toast.error("You must be assigned to a company or project before creating a quotation.");
+      return;
+    }
     setEditingQuote(null);
     setStep(1);
     setCompanyId("");
@@ -888,16 +901,6 @@ export default function ManagerQuotesScreen() {
           <View className="mx-5 mt-5 flex-row rounded-[14px] border border-[#CBD5E1] bg-white p-1">
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={() => setActiveTab("builder")}
-              className={`h-11 flex-1 flex-row items-center justify-center gap-2 rounded-[10px] ${activeTab === "builder" ? "bg-[#1F5577]" : "bg-white"}`}
-            >
-              <Ionicons name="construct-outline" size={17} color={activeTab === "builder" ? "#FFFFFF" : "#64748B"} />
-              <Text className={`text-[13px] font-semibold ${activeTab === "builder" ? "text-white" : "text-[#64748B]"}`}>
-                Quote Builder
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.85}
               onPress={() => {
                 setActiveTab("quotes");
                 void quoteEstimatesQuery.refetch();
@@ -915,6 +918,22 @@ export default function ManagerQuotesScreen() {
                   </Text>
                 </View>
               ) : null}
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                if (isManager && !companiesQuery.isLoading && companies.length === 0) {
+                  toast.error("You must be assigned to a company or project before creating a quotation.");
+                  return;
+                }
+                setActiveTab("builder");
+              }}
+              className={`h-11 flex-1 flex-row items-center justify-center gap-2 rounded-[10px] ${activeTab === "builder" ? "bg-[#1F5577]" : "bg-white"}`}
+            >
+              <Ionicons name="construct-outline" size={17} color={activeTab === "builder" ? "#FFFFFF" : "#64748B"} />
+              <Text className={`text-[13px] font-semibold ${activeTab === "builder" ? "text-white" : "text-[#64748B]"}`}>
+                Quote Builder
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -973,8 +992,6 @@ export default function ManagerQuotesScreen() {
                   defaultClientName={defaultClientName}
                   defaultPhone={defaultPhone}
                   defaultEmail={defaultEmail}
-                  estimatedTime={estimatedTime}
-                  setEstimatedTime={setEstimatedTime}
                   startDate={startDate}
                   setStartDate={setStartDate}
                   endDate={endDate}
@@ -1067,8 +1084,6 @@ export default function ManagerQuotesScreen() {
                   setPhoneNumber={setPhoneNumber}
                   email={email}
                   setEmail={setEmail}
-                  estimatedTime={estimatedTime}
-                  setEstimatedTime={setEstimatedTime}
                   startDate={startDate}
                   setStartDate={setStartDate}
                   endDate={endDate}
@@ -1137,6 +1152,7 @@ export default function ManagerQuotesScreen() {
                 </View>
               ) : step === 5 ? (
                 <QuoteWorkItemsStep
+                  showFinancials={canManageQuoteFinancials}
                   catalogTitle={
                     quoteCatalogGroups.length
                       ? "Work Item Categories"
@@ -1181,6 +1197,7 @@ export default function ManagerQuotesScreen() {
                 />
               ) : (
                 <QuoteFinalReviewStep
+                  showFinancials={canManageQuoteFinancials}
                   clientName={clientName || defaultClientName}
                   companyName={companyName}
                   projectName={projectName}
@@ -1470,9 +1487,11 @@ export default function ManagerQuotesScreen() {
                             <Text className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">
                               Items ({quote.tasks?.length ?? 0})
                             </Text>
-                            <Text className="mt-0.5 text-[18px] font-black text-[#1F5577]">
-                              {formatCurrency(Number(quote.totalAmount || 0))}
-                            </Text>
+                            {canManageQuoteFinancials ? (
+                              <Text className="mt-0.5 text-[18px] font-black text-[#1F5577]">
+                                {formatCurrency(Number(quote.totalAmount || 0))}
+                              </Text>
+                            ) : null}
                           </View>
 
                           {/* Delete Estimate Button - safely positioned inside card */}
@@ -1510,7 +1529,7 @@ export default function ManagerQuotesScreen() {
                         </View>
 
                         {/* Bottom Row: Actions (Send, Convert to Project or Project Created) */}
-                        {!isConverted &&
+                        {canManageQuoteFinancials && !isConverted &&
                           quote.status !== "rejected" &&
                           quote.status !== "cancelled" ? (
                           <View className="mt-3 flex-row gap-2.5">
@@ -1608,7 +1627,7 @@ export default function ManagerQuotesScreen() {
                             </Text>
                           </View>
                         ) : null}
-                        {quote.status !== "converted" && quote.status !== "cancelled" && quote.status !== "rejected" ? (
+                        {canManageQuoteFinancials && quote.status !== "converted" && quote.status !== "cancelled" && quote.status !== "rejected" ? (
                           <View className="mt-2 flex-row justify-end gap-3 px-1">
                             <TouchableOpacity onPress={() => handleQuoteStatusAction(quote, "reject")}>
                               <Text className="text-[12px] font-semibold text-red-600">Reject</Text>
@@ -1665,7 +1684,7 @@ export default function ManagerQuotesScreen() {
                   Select Company
                 </Text>
                 <Text className="mt-1 text-[13px] text-[#64748B]">
-                  Choose from saved companies.
+                  Choose from companies assigned to you.
                 </Text>
               </View>
               <TouchableOpacity
@@ -1690,7 +1709,7 @@ export default function ManagerQuotesScreen() {
                   No companies found
                 </Text>
                 <Text className="mt-2 text-center text-[13px] text-[#64748B]">
-                  Create a company first, then select it here.
+                  Ask your admin to assign you to a company or one of its projects.
                 </Text>
               </View>
             ) : (
@@ -1746,6 +1765,7 @@ export default function ManagerQuotesScreen() {
       />
 
       <AddCustomQuoteItemModal
+        showFinancials={canManageQuoteFinancials}
         visible={customItemModalVisible}
         plannedFloorNumbers={plannedFloorNumbers}
         getPlannedUnitNames={getPlannedUnitNames}
@@ -1782,6 +1802,7 @@ export default function ManagerQuotesScreen() {
 
       {/* Edit Service Details and Location Scoping Modal */}
       <EditQuoteItemModal
+        showFinancials={canManageQuoteFinancials}
         visible={editModalVisible}
         title={editTitle}
         quantity={editQuantity}

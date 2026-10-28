@@ -315,7 +315,6 @@ For an Android emulator, use:
 
 ```dotenv
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:6000
-EXPO_PUBLIC_API_BASE_URL_PLAN=http://10.0.2.2:5173
 EXPO_PUBLIC_DASHBOARD_URL=http://10.0.2.2:5173
 EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_key
 ```
@@ -325,7 +324,6 @@ IP. The phone and computer must be on the same network.
 
 ```dotenv
 EXPO_PUBLIC_API_BASE_URL=http://192.168.1.10:6000
-EXPO_PUBLIC_API_BASE_URL_PLAN=http://192.168.1.10:5173
 EXPO_PUBLIC_DASHBOARD_URL=http://192.168.1.10:5173
 EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_key
 ```
