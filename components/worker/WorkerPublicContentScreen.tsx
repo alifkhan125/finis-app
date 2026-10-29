@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { usePublicContentPageQuery } from "@/hooks/public-content/public-content";
+import RichDocument from "@/components/common/RichDocument";
 
 if (
   Platform.OS === "android" &&
@@ -47,6 +48,13 @@ function htmlToPlainText(value: string) {
   return value
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (_list, items: string) =>
+      items.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_item, content: string, offset: number, source: string) => {
+        const position = source.slice(0, offset).match(/<li\b/gi)?.length ?? 0;
+        return `${position + 1}. ${content}\n`;
+      }),
+    )
+    .replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (_list, items: string) => items.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "• $1\n"))
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n\n")
     .replace(/<\/li>/gi, "\n")
@@ -116,10 +124,10 @@ function extractBody(data?: { body?: unknown }) {
   const bodyObject = getObject(data?.body);
 
   return (
-    normalizeText(data?.body) ||
-    normalizeText(bodyObject?.content) ||
-    normalizeText(bodyObject?.description) ||
-    normalizeText(bodyObject?.text) ||
+    (typeof data?.body === "string" ? data.body.trim() : "") ||
+    (typeof bodyObject?.content === "string" ? bodyObject.content.trim() : "") ||
+    (typeof bodyObject?.description === "string" ? bodyObject.description.trim() : "") ||
+    (typeof bodyObject?.text === "string" ? bodyObject.text.trim() : "") ||
     ""
   );
 }
@@ -151,31 +159,16 @@ function extractFaqs(data?: { body?: unknown; sections?: unknown }) {
   );
 }
 
-function Section({ title, content }: SectionItem) {
+function Section({ title, content, number }: SectionItem & { number: number }) {
   return (
-    <View style={{ marginBottom: 24 }}>
-      {title ? (
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: "700",
-            color: THEME.colors.textMain,
-            marginBottom: 12,
-          }}
-        >
-          {title}
-        </Text>
-      ) : null}
-      <Text
-        style={{
-          fontSize: 14,
-          lineHeight: 22,
-          color: THEME.colors.textSecondary,
-          textAlign: "justify",
-        }}
-      >
-        {content}
-      </Text>
+    <View style={{ marginBottom: 14, flexDirection: "row", borderWidth: 1, borderColor: "#E5EAEE", borderRadius: 18, backgroundColor: "#F8FAFB", padding: 16 }}>
+      <View style={{ width: 32, height: 32, borderRadius: 12, backgroundColor: THEME.colors.accent, alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "700" }}>{number}</Text>
+      </View>
+      <View style={{ flex: 1, marginLeft: 12 }}>
+        {title ? <Text style={{ fontSize: 16, fontWeight: "700", color: THEME.colors.textMain, marginBottom: 8 }}>{title}</Text> : null}
+        <Text style={{ fontSize: 14, lineHeight: 22, color: THEME.colors.textSecondary }}>{content}</Text>
+      </View>
     </View>
   );
 }
@@ -266,8 +259,10 @@ export default function WorkerPublicContentScreen({
   const apiFaqs = extractFaqs(data);
   const intro = apiIntro || fallbackIntro;
   const body = apiBody;
-  const sections = apiSections.length > 0 ? apiSections : fallbackSections;
+  const isLegalDocument = slug === "privacy-policy" || slug === "terms-and-conditions";
+  const sections = isLegalDocument ? [] : apiSections.length > 0 ? apiSections : fallbackSections;
   const faqs = apiFaqs.length > 0 ? apiFaqs : fallbackFaqs;
+  const resolvedTitle = data?.title?.trim() || screenTitle;
 
   const toggleExpand = (index: number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -308,7 +303,7 @@ export default function WorkerPublicContentScreen({
             color: THEME.colors.textMain,
           }}
         >
-          {screenTitle}
+          {resolvedTitle}
         </Text>
       </View>
 
@@ -346,10 +341,17 @@ export default function WorkerPublicContentScreen({
                   onPress={() => toggleExpand(index)}
                 />
               ))
+            ) : isError ? (
+              <View style={{ alignItems: "center", paddingVertical: 48 }}>
+                <Feather name="wifi-off" size={32} color="#94A3B8" />
+                <Text style={{ marginTop: 14, fontSize: 15, fontWeight: "600", color: THEME.colors.textMain }}>Unable to load this page</Text>
+                <Text style={{ marginTop: 6, textAlign: "center", fontSize: 13, lineHeight: 20, color: THEME.colors.textSecondary }}>Check your connection and try again. This page is loaded from the Finis server.</Text>
+                <TouchableOpacity onPress={() => void refetch()} style={{ marginTop: 18, borderRadius: 12, backgroundColor: THEME.colors.accent, paddingHorizontal: 20, paddingVertical: 11 }}>
+                  <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Try again</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
-              <Text style={{ fontSize: 14, color: THEME.colors.textSecondary }}>
-                {isError ? "Failed to load content." : "No FAQ content available."}
-              </Text>
+              <Text style={{ fontSize: 14, color: THEME.colors.textSecondary }}>No FAQ content is currently published.</Text>
             )
           ) : (
             <>
@@ -367,32 +369,28 @@ export default function WorkerPublicContentScreen({
                 </Text>
               ) : null}
 
-              {body ? (
-                <Text
-                  style={{
-                    fontSize: 14,
-                    lineHeight: 22,
-                    color: THEME.colors.textSecondary,
-                    marginBottom: sections.length > 0 ? 24 : 0,
-                    textAlign: "justify",
-                  }}
-                >
-                  {body}
-                </Text>
-              ) : null}
+              {body ? <View style={{ marginBottom: sections.length > 0 ? 24 : 0 }}><RichDocument html={body} /></View> : null}
 
               {sections.length > 0 ? (
                 sections.map((section, index) => (
                   <Section
                     key={`${section.title}-${index}`}
+                    number={index + 1}
                     title={section.title}
                     content={section.content}
                   />
                 ))
+              ) : isError ? (
+                <View style={{ alignItems: "center", paddingVertical: 48 }}>
+                  <Feather name="wifi-off" size={32} color="#94A3B8" />
+                  <Text style={{ marginTop: 14, fontSize: 15, fontWeight: "600", color: THEME.colors.textMain }}>Unable to load this page</Text>
+                  <Text style={{ marginTop: 6, textAlign: "center", fontSize: 13, lineHeight: 20, color: THEME.colors.textSecondary }}>Check your connection and try again. This page is loaded from the Finis server.</Text>
+                  <TouchableOpacity onPress={() => void refetch()} style={{ marginTop: 18, borderRadius: 12, backgroundColor: THEME.colors.accent, paddingHorizontal: 20, paddingVertical: 11 }}>
+                    <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Try again</Text>
+                  </TouchableOpacity>
+                </View>
               ) : (
-                <Text style={{ fontSize: 14, color: THEME.colors.textSecondary }}>
-                  {isError ? "Failed to load content." : "No content available."}
-                </Text>
+                <Text style={{ fontSize: 14, color: THEME.colors.textSecondary }}>No content is currently published.</Text>
               )}
             </>
           )}

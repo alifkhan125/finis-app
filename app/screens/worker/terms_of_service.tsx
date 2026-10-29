@@ -3,7 +3,7 @@ import WorkerPublicContentScreen from "@/components/worker/WorkerPublicContentSc
 export default function TermsOfServiceScreen() {
   return (
     <WorkerPublicContentScreen
-      screenTitle="Terms of Service"
+      screenTitle="Terms & Conditions"
       slug="terms-and-conditions"
     />
   );

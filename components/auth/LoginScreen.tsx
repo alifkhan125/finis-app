@@ -186,6 +186,41 @@ export default function LoginScreen() {
                 {isPending ? "Logging in..." : "Login"}
               </Text>
             </TouchableOpacity>
+
+            <View className="mt-8 items-center border-t border-[#D5DAE0] pt-5">
+              <View className="mb-2 flex-row items-center">
+                <Ionicons name="shield-checkmark-outline" size={15} color="#64707C" />
+                <Text className="ml-1.5 text-[12px] text-[#64707C]">
+                  Your account and data are protected
+                </Text>
+              </View>
+              <Text className="text-center text-[12px] leading-5 text-[#747B83]">
+                By continuing, you acknowledge our
+              </Text>
+              <View className="mt-1 flex-row items-center justify-center">
+                <TouchableOpacity
+                  onPress={() => router.push("/(auth)/privacy-policy")}
+                  activeOpacity={0.7}
+                  accessibilityRole="link"
+                  accessibilityLabel="Open Privacy Policy"
+                >
+                  <Text className="text-[13px] font-semibold text-[#1F5577] underline">
+                    Privacy Policy
+                  </Text>
+                </TouchableOpacity>
+                <Text className="mx-2 text-[12px] text-[#9AA1A8]">•</Text>
+                <TouchableOpacity
+                  onPress={() => router.push("/(auth)/terms-and-conditions")}
+                  activeOpacity={0.7}
+                  accessibilityRole="link"
+                  accessibilityLabel="Open Terms and Conditions"
+                >
+                  <Text className="text-[13px] font-semibold text-[#1F5577] underline">
+                    Terms &amp; Conditions
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

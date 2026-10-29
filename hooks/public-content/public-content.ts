@@ -11,6 +11,9 @@ export function usePublicContentPageQuery(slug: string) {
     queryKey: ["public-content", slug],
     queryFn: () => getPublicContentPage(slug),
     retry: 1,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnReconnect: true,
   });
 }
 
