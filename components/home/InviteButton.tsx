@@ -20,6 +20,8 @@ export default function InviteButton({ onPress }: InviteButtonProps) {
   const [visible, setVisible] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("manager");
+  const [temporaryPassword, setTemporaryPassword] = useState("123456");
+  const [showPassword, setShowPassword] = useState(false);
   const [showRoleOptions, setShowRoleOptions] = useState(false);
 
   const roleOptions = [
@@ -31,6 +33,7 @@ export default function InviteButton({ onPress }: InviteButtonProps) {
   const closeModal = () => {
     setVisible(false);
     setShowRoleOptions(false);
+    setShowPassword(false);
   };
 
   const handleInvite = async () => {
@@ -40,12 +43,17 @@ export default function InviteButton({ onPress }: InviteButtonProps) {
       toast.error("Enter email");
       return;
     }
+    if (temporaryPassword.length < 6) {
+      toast.error("Temporary password must be at least 6 characters");
+      return;
+    }
 
     try {
-      const message = await invite({ email: trimmedEmail, role });
+      const message = await invite({ email: trimmedEmail, role, temporaryPassword });
       toast.success(message);
       setEmail("");
       setRole("manager");
+      setTemporaryPassword("123456");
       closeModal();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Invite failed");
@@ -101,6 +109,27 @@ export default function InviteButton({ onPress }: InviteButtonProps) {
                   keyboardType="email-address"
                 />
               </View>
+
+              <Text className="mb-2 mt-4 text-[16px] font-medium text-[#2B3138]">
+                Temporary password
+              </Text>
+              <View className="h-12 flex-row items-center rounded-[10px] border border-[#D6DEE5] bg-[#EEF3F6] px-3">
+                <TextInput
+                  value={temporaryPassword}
+                  onChangeText={setTemporaryPassword}
+                  placeholder="Minimum 6 characters"
+                  placeholderTextColor="#8C98A4"
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  className="flex-1 text-[16px] text-[#1F2937]"
+                />
+                <TouchableOpacity onPress={() => setShowPassword((current) => !current)} accessibilityRole="button" accessibilityLabel={showPassword ? "Hide temporary password" : "Show temporary password"}>
+                  <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+              <Text className="mt-1.5 text-[11px] leading-4 text-[#6B7280]">
+                Share this password securely. The user can change it after login.
+              </Text>
 
               <TouchableOpacity
                 activeOpacity={0.85}

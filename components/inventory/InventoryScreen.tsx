@@ -23,8 +23,12 @@ import {
 } from "@/hooks/inventory/inventory";
 import { usePullToRefresh } from "@/hooks/common/usePullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/auth.store";
 
 export default function InventoryScreen() {
+  const role = useAuthStore((state) => state.user?.role);
+  const canManageInventory = role === "admin" || role === "manager";
+  const canCreateInventory = canManageInventory || role === "worker";
   const { data: summary, refetch: refetchSummary } = useInventorySummaryQuery();
   const { data: alerts = [], isLoading: isLoadingAlerts, refetch: refetchAlerts } = useLowStockAlertsQuery();
   const { data: items = [], isLoading, refetch: refetchItems } = useAllInventoryItemsQuery();
@@ -81,7 +85,7 @@ export default function InventoryScreen() {
         <InventoryHeader
           title="Inventory"
           onBack={() => router.back()}
-          showAddButton
+          showAddButton={canCreateInventory}
           onPressAdd={() => router.push("/screens/inventory/add")}
         />
 
@@ -127,8 +131,8 @@ export default function InventoryScreen() {
                 <InventoryItemCard
                   key={item.id}
                   item={item}
-                  onPressUpdate={() => handleOpenUpdate(item.id)}
-                  onPressDelete={() => handleDeleteItem(item.id, item.projectId)}
+                  onPressUpdate={canManageInventory ? () => handleOpenUpdate(item.id) : undefined}
+                  onPressDelete={canManageInventory ? () => handleDeleteItem(item.id, item.projectId) : undefined}
                 />
               ))}
             </View>

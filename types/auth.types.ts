@@ -27,6 +27,7 @@ export type AuthSession = {
 export type InviteUserData = {
   email: string;
   role: "admin" | "manager" | "worker" | string;
+  temporaryPassword?: string;
 };
 
 export type ForgotPasswordData = {

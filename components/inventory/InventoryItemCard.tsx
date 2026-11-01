@@ -99,14 +99,20 @@ export default function InventoryItemCard({
           Updated: {item.updatedAt}
         </Text>
 
-        <View className="flex-row items-center space-x-3">
-          <TouchableOpacity activeOpacity={0.85} onPress={onPressUpdate} className="mr-3">
-            <Feather name="edit-2" size={20} color="#1D5478" />
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.85} onPress={onPressDelete}>
-            <Feather name="trash-2" size={20} color="#DC2626" />
-          </TouchableOpacity>
-        </View>
+        {onPressUpdate || onPressDelete ? (
+          <View className="flex-row items-center space-x-3">
+            {onPressUpdate ? (
+              <TouchableOpacity activeOpacity={0.85} onPress={onPressUpdate} className="mr-3">
+                <Feather name="edit-2" size={20} color="#1D5478" />
+              </TouchableOpacity>
+            ) : null}
+            {onPressDelete ? (
+              <TouchableOpacity activeOpacity={0.85} onPress={onPressDelete}>
+                <Feather name="trash-2" size={20} color="#DC2626" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     </View>
   );

@@ -102,6 +102,19 @@ export default function WorkerLayout() {
         }}
       />
       <Tabs.Screen
+        name="inventory"
+        options={{
+          title: "Inventory",
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              focused={focused}
+              activeName="cube"
+              inactiveName="cube-outline"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
