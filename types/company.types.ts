@@ -284,6 +284,7 @@ export type TaskListItem = {
   location?: string;
   subTaskCount?: number;
   completedSubTaskCount?: number;
+  subTaskStatusSummary?: Record<string, number>;
   assignedWorkerCount?: number;
   allowSubTaskCreation?: boolean;
   approvalDecision?: string | null;

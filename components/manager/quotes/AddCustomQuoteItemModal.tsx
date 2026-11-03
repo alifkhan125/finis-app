@@ -15,10 +15,12 @@ import { toast } from "sonner-native";
 export type WorkItemTemplateSuggestion = {
   id: string;
   name: string;
+  description?: string | null;
   category?: { id: string; name: string } | null;
   measurementType?: string | null;
   unitCost?: number | null;
   estimatedHours?: number | null;
+  badgeLabel?: string;
 };
 
 type AddCustomQuoteItemModalProps = {
@@ -161,10 +163,13 @@ export default function AddCustomQuoteItemModal({
     }
     setSelectedTemplateId(template.id);
     setTaskTitle(template.name);
-    if (showFinancials && template.unitCost) {
+    if (template.description) {
+      setDescription(template.description);
+    }
+    if (showFinancials && template.unitCost != null) {
       setInternalPrice(String(template.unitCost));
     }
-    if (template.estimatedHours) {
+    if (template.estimatedHours != null) {
       setHoursPerUnit(String(template.estimatedHours));
     }
     setTemplateDropdownOpen(false);
@@ -267,7 +272,7 @@ export default function AddCustomQuoteItemModal({
 
                 {/* Dropdown Options */}
                 {templateDropdownOpen && (
-                  <View className="mt-1.5 max-h-[160px] rounded-[12px] border border-[#E5E7EB] bg-white shadow-lg">
+                  <View className="mt-1.5 max-h-[220px] rounded-[12px] border border-[#E5E7EB] bg-white shadow-lg">
                     <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
                       <TouchableOpacity
                         onPress={() => handleSelectTemplate(null)}
@@ -281,12 +286,32 @@ export default function AddCustomQuoteItemModal({
                         <TouchableOpacity
                           key={item.id}
                           onPress={() => handleSelectTemplate(item)}
-                          className="border-b border-[#F3F4F6] px-3.5 py-2.5"
+                          className="border-b border-[#F3F4F6] px-3.5 py-2.5 flex-row items-center justify-between"
                         >
-                          <Text className="text-[13px] text-[#374151]">
-                            {item.name}
-                            {showFinancials && item.unitCost ? ` ($${Number(item.unitCost).toFixed(2)})` : ""}
-                          </Text>
+                          <View className="flex-1 pr-2">
+                            <View className="flex-row items-center gap-1.5">
+                              <Text className="text-[13px] font-medium text-[#374151]">
+                                {item.name}
+                              </Text>
+                              {item.badgeLabel && (
+                                <View className="rounded bg-[#E0F2FE] px-1.5 py-0.5">
+                                  <Text className="text-[10px] font-bold text-[#0369A1]">
+                                    {item.badgeLabel}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                            {item.description ? (
+                              <Text numberOfLines={1} className="mt-0.5 text-[11px] text-[#94A3B8]">
+                                {item.description}
+                              </Text>
+                            ) : null}
+                          </View>
+                          {showFinancials && item.unitCost ? (
+                            <Text className="text-[12px] font-semibold text-[#1F5577]">
+                              ${Number(item.unitCost).toFixed(2)}
+                            </Text>
+                          ) : null}
                         </TouchableOpacity>
                       ))}
                     </ScrollView>

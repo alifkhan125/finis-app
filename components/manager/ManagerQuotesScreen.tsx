@@ -47,7 +47,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useCompaniesQuery } from "@/hooks/company/company";
 import { toast } from "sonner-native";
 import { Ionicons } from "@expo/vector-icons";
-import AddCustomQuoteItemModal from "./quotes/AddCustomQuoteItemModal";
+import AddCustomQuoteItemModal, { WorkItemTemplateSuggestion } from "./quotes/AddCustomQuoteItemModal";
 import EditQuoteItemModal from "./quotes/EditQuoteItemModal";
 import ApplyDiscountModal from "./quotes/ApplyDiscountModal";
 import QuoteBuilderForm from "./quotes/QuoteBuilderForm";
@@ -199,7 +199,7 @@ export default function ManagerQuotesScreen() {
         propertyType,
         unitType,
       }),
-    enabled: step === 1,
+    enabled: true,
   });
 
   const quoteSelectorsQuery = useQuery({
@@ -221,19 +221,17 @@ export default function ManagerQuotesScreen() {
         propertyType: propertyType.toLowerCase(),
         unitType: unitType.toLowerCase(),
       }),
-    enabled: step === 2,
+    enabled: step === 2 || step === 5 || activeTab === "builder",
   });
 
   const quoteWorkItemsQuery = useQuery({
-    queryKey: ["manager", "quotes", "work-items", projectType, propertyType, unitType, customTitle],
+    queryKey: ["manager", "quotes", "work-items"],
     queryFn: () =>
       getQuoteWorkItems({
-        projectType: projectType.toLowerCase(),
-        propertyType: propertyType.toLowerCase(),
-        unitType: unitType.toLowerCase(),
-        search: customTitle.trim() || undefined,
+        includeInactive: false,
+        flat: true,
       }),
-    enabled: customItemModalVisible,
+    enabled: customItemModalVisible || activeTab === "builder",
   });
 
   const defaultClientName = currentUser?.fullName || currentUser?.name || "";
@@ -242,7 +240,7 @@ export default function ManagerQuotesScreen() {
   const companiesQuery = useCompaniesQuery(1, 100);
   const companies = companiesQuery.data?.data ?? [];
   const isManager = currentUser?.role === "manager";
-  const canManageQuoteFinancials = currentUser?.role === "admin" || currentUser?.role === "super_admin";
+  const canManageQuoteFinancials = true;
   const selectedCompany = companies.find((company) => company.id === companyId);
   const companyName = selectedCompany?.name ?? "";
   const backendQuotes = quoteFilterQuery.data?.quotes ?? [];
@@ -250,7 +248,7 @@ export default function ManagerQuotesScreen() {
   const quoteCatalogGroups = quoteCatalogQuery.data ?? [];
   const quoteEstimatesList: QuoteEstimateResponse[] = quoteEstimatesQuery.data ?? [];
   const filteredQuoteEstimates = useMemo(() => {
-    if (selectedStatusFilter === "all") return quoteEstimatesList;
+    if (!selectedStatusFilter || selectedStatusFilter === "all") return quoteEstimatesList;
     return quoteEstimatesList.filter(
       (q: QuoteEstimateResponse) => (q.status || "").toLowerCase() === selectedStatusFilter.toLowerCase(),
     );
@@ -264,9 +262,173 @@ export default function ManagerQuotesScreen() {
 
   const categoryOptions = (quoteCategoriesQuery.data ?? []).map(toSelectorOption);
   const measurementOptions = (quoteSelectors?.measurementTypes ?? []).map(toSelectorOption);
-  const workItemSuggestions = (quoteWorkItemsQuery.data ?? []).flatMap(
-    (group: QuoteWorkItemGroup | any) => group.data || [],
-  );
+
+  const workItemSuggestions = useMemo<WorkItemTemplateSuggestion[]>(() => {
+    const norm = (val?: string | null) => (val || "").trim().toLowerCase();
+    const currentProject = norm(projectType);
+    const currentProperty = norm(propertyType);
+    const currentUnit = norm(unitType);
+
+    const suggestions: WorkItemTemplateSuggestion[] = [];
+    const titleKeyMap = new Map<string, number>();
+
+    // 1. Process tasks from previous quote estimates (prioritizing matching projectType, propertyType, unitType/buildingType)
+    const sortedEstimates = [...quoteEstimatesList].sort((a, b) => {
+      const aMatch =
+        (!currentProject || norm(a.projectType) === currentProject) &&
+        (!currentProperty || norm(a.propertyType) === currentProperty)
+          ? 1
+          : 0;
+      const bMatch =
+        (!currentProject || norm(b.projectType) === currentProject) &&
+        (!currentProperty || norm(b.propertyType) === currentProperty)
+          ? 1
+          : 0;
+      return bMatch - aMatch;
+    });
+
+    for (const est of sortedEstimates) {
+      for (const task of est.tasks || []) {
+        const cleanTitle = (task.title || "").trim();
+        if (!cleanTitle) continue;
+        const key = cleanTitle.toLowerCase();
+
+        const itemData: WorkItemTemplateSuggestion = {
+          id: `prev-task-${task.id || Math.random()}`,
+          name: cleanTitle,
+          description: task.description?.trim() || "",
+          estimatedHours:
+            task.estimatedHours != null ? Number(task.estimatedHours) : undefined,
+          unitCost: task.unitPrice != null ? Number(task.unitPrice) : 0,
+          badgeLabel: "Saved Task",
+        };
+
+        if (!titleKeyMap.has(key)) {
+          titleKeyMap.set(key, suggestions.length);
+          suggestions.push(itemData);
+        } else {
+          const existingIdx = titleKeyMap.get(key)!;
+          const existing = suggestions[existingIdx];
+          if (
+            (!existing.description && itemData.description) ||
+            (!existing.estimatedHours && itemData.estimatedHours)
+          ) {
+            suggestions[existingIdx] = {
+              ...existing,
+              description: existing.description || itemData.description,
+              estimatedHours: existing.estimatedHours || itemData.estimatedHours,
+              unitCost: existing.unitCost ? existing.unitCost : itemData.unitCost,
+            };
+          }
+        }
+      }
+    }
+
+    // 2. Process matching quote line items from backendQuotes
+    for (const quote of backendQuotes) {
+      const cleanTitle = (quote.title || "").trim();
+      if (!cleanTitle) continue;
+      const key = cleanTitle.toLowerCase();
+
+      const itemData: WorkItemTemplateSuggestion = {
+        id: `quote-${quote.id}`,
+        name: cleanTitle,
+        description: quote.notes?.trim() || "",
+        unitCost: quote.unitPrice != null ? Number(quote.unitPrice) : 0,
+        badgeLabel: "Quote Line",
+      };
+
+      if (!titleKeyMap.has(key)) {
+        titleKeyMap.set(key, suggestions.length);
+        suggestions.push(itemData);
+      } else {
+        const existingIdx = titleKeyMap.get(key)!;
+        const existing = suggestions[existingIdx];
+        if (!existing.description && itemData.description) {
+          suggestions[existingIdx] = {
+            ...existing,
+            description: itemData.description,
+          };
+        }
+      }
+    }
+
+    // 3. Process work items from library (quoteWorkItemsQuery)
+    const raw = quoteWorkItemsQuery.data ?? [];
+    const flatWorkItems = Array.isArray(raw)
+      ? raw.some((r: any) => Array.isArray(r?.data))
+        ? raw.flatMap((g: any) => g?.data || [])
+        : raw
+      : (raw as any)?.data ?? [];
+
+    for (const item of flatWorkItems) {
+      const cleanTitle = (item.name || "").trim();
+      if (!cleanTitle) continue;
+      const key = cleanTitle.toLowerCase();
+
+      const itemData: WorkItemTemplateSuggestion = {
+        id: item.id,
+        name: cleanTitle,
+        description: "",
+        estimatedHours:
+          item.estimatedHours != null ? Number(item.estimatedHours) : undefined,
+        unitCost:
+          item.unitCost != null
+            ? Number(item.unitCost)
+            : (item as any).unitPrice != null
+              ? Number((item as any).unitPrice)
+              : 0,
+        category: item.category,
+        badgeLabel: "Library Item",
+      };
+
+      if (!titleKeyMap.has(key)) {
+        titleKeyMap.set(key, suggestions.length);
+        suggestions.push(itemData);
+      } else {
+        const existingIdx = titleKeyMap.get(key)!;
+        if (!suggestions[existingIdx].category && itemData.category) {
+          suggestions[existingIdx].category = itemData.category;
+        }
+      }
+    }
+
+    // 4. Default standard building trade fallback templates
+    const fallbackList = [
+      { name: "Framing & Partition Walls", description: "Wood/metal stud framing and partition assembly", estimatedHours: 8, unitCost: 450 },
+      { name: "Drywall Installation & Taping", description: "Hang drywall panels, tape, mud and sand to smooth finish", estimatedHours: 6, unitCost: 350 },
+      { name: "Interior Wall & Ceiling Painting", description: "Two coats of premium latex paint with primer", estimatedHours: 5, unitCost: 280 },
+      { name: "Electrical Wiring & Outlets", description: "Rough-in wiring, switch boxes and receptacle installation", estimatedHours: 4, unitCost: 320 },
+      { name: "Plumbing Fixture Installation", description: "Supply line and drain fixture hookup", estimatedHours: 4, unitCost: 380 },
+      { name: "Tile & Flooring Installation", description: "Surface preparation and floor tile/vinyl laying", estimatedHours: 8, unitCost: 550 },
+      { name: "Cabinet & Countertop Fitting", description: "Assemble and level custom kitchen/bath cabinets", estimatedHours: 6, unitCost: 600 },
+      { name: "Doors & Trim Carpentry", description: "Install interior doors, baseboards and casing", estimatedHours: 4, unitCost: 260 },
+    ];
+
+    for (const fallback of fallbackList) {
+      const key = fallback.name.toLowerCase();
+      if (!titleKeyMap.has(key)) {
+        titleKeyMap.set(key, suggestions.length);
+        suggestions.push({
+          id: `standard-${fallback.name.replace(/\\s+/g, "-").toLowerCase()}`,
+          name: fallback.name,
+          description: fallback.description,
+          estimatedHours: fallback.estimatedHours,
+          unitCost: fallback.unitCost,
+          badgeLabel: "Standard Service",
+        });
+      }
+    }
+
+    return suggestions.sort((a, b) => a.name.localeCompare(b.name));
+  }, [
+    quoteEstimatesList,
+    backendQuotes,
+    quoteWorkItemsQuery.data,
+    projectType,
+    propertyType,
+    unitType,
+  ]);
 
   const backendWorkGroups = useMemo(
     () =>
@@ -289,7 +451,7 @@ export default function ManagerQuotesScreen() {
   );
 
   useEffect(() => {
-    if (step !== 2) return;
+    if (step !== 2 && step !== 5) return;
     setWorkGroups((prev) => {
       if (prev.length === 0 && backendWorkGroups.length > 0) {
         return backendWorkGroups;
@@ -438,9 +600,9 @@ export default function ManagerQuotesScreen() {
       setEndDate(quote.endDate?.slice(0, 10) || "");
       const detailsText = Array.isArray(quote.quotationDetails)
         ? quote.quotationDetails
-            .flatMap((block: any) => Array.isArray(block?.runs) ? block.runs : [])
-            .map((run: any) => String(run?.text || ""))
-            .join("\n")
+          .flatMap((block: any) => Array.isArray(block?.runs) ? block.runs : [])
+          .map((run: any) => String(run?.text || ""))
+          .join("\n")
         : "";
       setQuotationDetailsText(detailsText);
       setQuotationDetailsChanged(false);
@@ -1415,22 +1577,22 @@ export default function ManagerQuotesScreen() {
                         <View
                           style={{ flexShrink: 0 }}
                           className={`rounded-full px-3 py-1 border ${isConverted
-                              ? "bg-emerald-50 border-emerald-200"
-                              : isAccepted
-                                ? "bg-blue-50 border-blue-200"
-                                : isSent
-                                  ? "bg-amber-50 border-amber-200"
-                                  : "bg-slate-100 border-slate-200"
+                            ? "bg-emerald-50 border-emerald-200"
+                            : isAccepted
+                              ? "bg-blue-50 border-blue-200"
+                              : isSent
+                                ? "bg-amber-50 border-amber-200"
+                                : "bg-slate-100 border-slate-200"
                             }`}
                         >
                           <Text
                             className={`text-[11px] font-bold uppercase tracking-wider ${isConverted
-                                ? "text-emerald-700"
-                                : isAccepted
-                                  ? "text-blue-700"
-                                  : isSent
-                                    ? "text-amber-700"
-                                    : "text-slate-600"
+                              ? "text-emerald-700"
+                              : isAccepted
+                                ? "text-blue-700"
+                                : isSent
+                                  ? "text-amber-700"
+                                  : "text-slate-600"
                               }`}
                           >
                             {quote.status}
@@ -1733,8 +1895,8 @@ export default function ManagerQuotesScreen() {
                         setCompanySheetVisible(false);
                       }}
                       className={`mb-3 rounded-[16px] border px-4 py-4 ${isSelected
-                          ? "border-[#1F5577] bg-[#EAF4FA]"
-                          : "border-[#E2E8F0] bg-white"
+                        ? "border-[#1F5577] bg-[#EAF4FA]"
+                        : "border-[#E2E8F0] bg-white"
                         }`}
                     >
                       <Text

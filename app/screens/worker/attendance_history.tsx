@@ -153,6 +153,7 @@ export default function AttendanceHistoryScreen() {
                     </View>
                   </View>
 
+                  <AttendanceBreakdown calculation={attendance.calculation} date={attendance.date} />
                   {/* Row 3: Requested Time and Adjust Button */}
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
                     <View style={{ flex: 1 }}>
@@ -200,3 +201,4 @@ export default function AttendanceHistoryScreen() {
     </SafeAreaView>
   );
 }
+import AttendanceBreakdown from '@/components/worker/AttendanceBreakdown';

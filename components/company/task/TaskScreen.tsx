@@ -93,6 +93,7 @@ export default function TaskScreen({ projectId, onCreateTaskPress }: TaskScreenP
         reportCount: task._count?.reports ?? 0,
         subTaskCount: task.subTaskCount ?? task._count?.subTasks ?? 0,
         completedSubTaskCount: task.completedSubTaskCount ?? 0,
+        subTaskStatusSummary: task.subTaskStatusSummary ?? {},
         assignedWorkerCount: task.assignedWorkerCount ?? 0,
         allowSubTaskCreation: task.allowSubTaskCreation ?? false,
         approvalDecision: task.approvalDecision,
@@ -180,6 +181,7 @@ export default function TaskScreen({ projectId, onCreateTaskPress }: TaskScreenP
 
                 subTaskCount={task.subTaskCount ?? 0}
                 completedTaskCount={task.completedSubTaskCount ?? 0}
+                subTaskStatusSummary={task.subTaskStatusSummary}
                 isActionLoading={
                   reviewTaskApprovalMutation.isPending ||
                   reviewTaskCompletionMutation.isPending

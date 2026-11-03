@@ -23,6 +23,7 @@ export default function UpdateInventoryScreen({ itemId }: { itemId: string }) {
   const item = useMemo(() => items?.find((entry) => entry.id === itemId), [items, itemId]);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
+  const [location, setLocation] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("Units");
   const [minStockQty, setMinStockQty] = useState("5");
@@ -32,6 +33,7 @@ export default function UpdateInventoryScreen({ itemId }: { itemId: string }) {
     if (!item) return;
     setName(item.name || "");
     setCategory(item.category || "");
+    setLocation(item.location && item.location !== "Unknown" ? item.location : "");
     setQuantity(String(item.currentQty ?? 0));
     setUnit(item.unit || "Units");
     setMinStockQty(String(item.minStock ?? 5));
@@ -57,6 +59,7 @@ export default function UpdateInventoryScreen({ itemId }: { itemId: string }) {
         projectId: item.projectId,
         name: name.trim(),
         category: category.trim() || undefined,
+        location: location.trim() || undefined,
         currentQty: Number(quantity) || 0,
         unit: unit.trim(),
         minStockQty: Number(minStockQty) || 0,
@@ -113,6 +116,12 @@ export default function UpdateInventoryScreen({ itemId }: { itemId: string }) {
                 value={category}
                 onChangeText={setCategory}
                 placeholder="e.g. Structural, Finishing"
+              />
+              <InventoryFormField
+                label="Location"
+                value={location}
+                onChangeText={setLocation}
+                placeholder="e.g. Warehouse A, Site Shed"
               />
               <InventoryFormField
                 label="Current Stock Quantity"

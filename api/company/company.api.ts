@@ -430,6 +430,7 @@ type BackendTaskResponseItem = {
   location?: string;
   subTaskCount?: number;
   completedSubTaskCount?: number;
+  subTaskStatusSummary?: Record<string, number>;
   assignedWorkerCount?: number;
   _count?: {
     reports?: number;
@@ -544,6 +545,7 @@ function mapBackendTaskResponse(task: BackendTaskResponseItem): TaskListItem {
     location: task.location ?? "",
     subTaskCount: task.subTaskCount ?? 0,
     completedSubTaskCount: task.completedSubTaskCount ?? 0,
+    subTaskStatusSummary: task.subTaskStatusSummary ?? {},
     assignedWorkerCount: task.assignedWorkerCount ?? 0,
     allowSubTaskCreation: task.task.allowSubTaskCreation ?? false,
     approvalDecision: task.task.approvalDecision,

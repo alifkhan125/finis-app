@@ -14,6 +14,7 @@ type TaskCardProps = {
   onPressSubtaskAction?: () => void;
   subTaskCount?: number;
   completedTaskCount?: number;
+  subTaskStatusSummary?: Record<string, number>;
   isActionLoading?: boolean;
   subtaskActionLabel?: string;
   subtaskActionDisabled?: boolean;
@@ -50,6 +51,7 @@ export default function TaskCard({
   onPressSubtaskAction,
   subTaskCount = 0,
   completedTaskCount = 0,
+  subTaskStatusSummary = {},
   isActionLoading = false,
   subtaskActionLabel,
   subtaskActionDisabled = true,
@@ -90,6 +92,31 @@ export default function TaskCard({
   const shouldShowAssignWorkerButton = isAdminRole || isManagerRole;
   const resolvedActionDisabled = actionDisabled;
   const canShowPrice = isAdminRole && task.price !== undefined && task.price !== null;
+  const statusLabels: Record<string, string> = {
+    pending: "Pending",
+    in_active: "Pending",
+    in_progress: "In Progress",
+    review: "Review",
+    completed: "Completed",
+    revision: "Revision",
+    cancelled: "Cancelled",
+  };
+  const subtaskStatusStyles: Record<string, { bg: string; text: string }> = {
+    pending: { bg: "#FFF4E8", text: "#B76E00" },
+    in_active: { bg: "#FFF4E8", text: "#B76E00" },
+    in_progress: { bg: "#E6F1FB", text: "#185FA5" },
+    review: { bg: "#F1EDFF", text: "#6941C6" },
+    completed: { bg: "#EAF3DE", text: "#3B6D11" },
+    revision: { bg: "#FCEBEB", text: "#A32D2D" },
+    cancelled: { bg: "#F2F4F7", text: "#667085" },
+  };
+  const statusChips = Object.entries(subTaskStatusSummary)
+    .filter(([, count]) => count > 0)
+    .map(([status, count]) => ({
+      key: status,
+      label: `${statusLabels[status] ?? status.replace(/_/g, " ")} ${count}`,
+      style: subtaskStatusStyles[status] ?? { bg: "#EEF2F6", text: "#536174" },
+    }));
 
   return (
     <TouchableOpacity
@@ -179,6 +206,15 @@ export default function TaskCard({
           </Text>
         </View>
       </View>}
+      {isMainTaskCard && statusChips.length > 0 ? (
+        <View className="mt-2 flex-row flex-wrap gap-1.5">
+          {statusChips.map((chip) => (
+            <View key={chip.key} className="rounded-full px-2 py-1" style={{ backgroundColor: chip.style.bg }}>
+              <Text className="text-[11px] font-medium" style={{ color: chip.style.text }}>{chip.label}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
 {/* bg-[#EEF8F1] px-3 border-[#D8EFE0] rounded-lg border text-[#168044] text-[#168044]*/}
       {canShowPrice ? (
         <View className="flex-row items-center justify-between    py-2"> 

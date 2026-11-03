@@ -369,7 +369,7 @@ export default function WorkerPublicContentScreen({
                 </Text>
               ) : null}
 
-              {body ? <View style={{ marginBottom: sections.length > 0 ? 24 : 0 }}><RichDocument html={body} /></View> : null}
+              {body ? <View style={{ marginBottom: sections.length > 0 ? 24 : 0 }}><RichDocument html={body} flattenQuoteBlocks={isLegalDocument} /></View> : null}
 
               {sections.length > 0 ? (
                 sections.map((section, index) => (

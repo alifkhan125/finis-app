@@ -30,14 +30,7 @@ const THEME = {
 
 export default function SupportRequestsScreen() {
   const [complain, setComplain] = useState("");
-  const [recipient, setRecipient] = useState<"admin" | "manager">("admin");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const supportMutation = useWorkerSupportRequestMutation();
-
-  const recipientOptions = [
-    { label: "Send to admin", value: "admin" as const },
-    { label: "Send to manager", value: "manager" as const },
-  ];
 
   const handleSubmit = async () => {
     if (!complain.trim()) {
@@ -47,7 +40,9 @@ export default function SupportRequestsScreen() {
 
     try {
       await supportMutation.mutateAsync({
-        sendTo: recipient,
+        // Keep the legacy request field for backward compatibility. The
+        // backend always routes this request to the active super_admin.
+        sendTo: "admin",
         message: complain.trim(),
       });
       router.back();
@@ -102,86 +97,19 @@ export default function SupportRequestsScreen() {
             paddingBottom: 40,
           }}
         >
-          <View style={{ marginBottom: 16, zIndex: 10 }}>
-            <TouchableOpacity
-              onPress={() => setIsDropdownOpen(!isDropdownOpen)}
-              style={{
-                height: 64,
-                backgroundColor: "#F3F9FB",
-                borderRadius: 12,
-                flexDirection: "row",
-                alignItems: "center",
-                paddingHorizontal: 16,
-                borderWidth: 1,
-                borderColor: "#E2E8F0",
-              }}
-            >
-              <Text
-                style={{
-                  flex: 1,
-                  fontSize: 16,
-                  color: "#1A1C1E",
-                  fontWeight: "500",
-                }}
-              >
-                {recipientOptions.find((opt) => opt.value === recipient)?.label}
-              </Text>
-              <Feather
-                name={isDropdownOpen ? "chevron-up" : "chevron-down"}
-                size={24}
-                color="#1A1C1E"
-              />
-            </TouchableOpacity>
-
-            {isDropdownOpen ? (
-              <View
-                style={{
-                  position: "absolute",
-                  top: 68,
-                  left: 0,
-                  right: 0,
-                  backgroundColor: "white",
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: "#E2E8F0",
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 5,
-                  elevation: 2,
-                  overflow: "hidden",
-                }}
-              >
-                {recipientOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    onPress={() => {
-                      setRecipient(option.value);
-                      setIsDropdownOpen(false);
-                    }}
-                    style={{
-                      paddingVertical: 16,
-                      paddingHorizontal: 16,
-                      backgroundColor:
-                        recipient === option.value ? "#F3F9FB" : "white",
-                      borderBottomWidth: option.value === "manager" ? 0 : 1,
-                      borderBottomColor: "#F1F5F9",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        color:
-                          recipient === option.value ? "#1D4F6D" : "#475569",
-                        fontWeight: recipient === option.value ? "700" : "500",
-                      }}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : null}
+          <View
+            style={{
+              marginBottom: 16,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: "#E2E8F0",
+              backgroundColor: "#F3F9FB",
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+            }}
+          >
+            <Text style={{ fontSize: 13, color: "#64748B" }}>Your request will be sent to Finis Support.</Text>
+            <Text style={{ marginTop: 4, fontSize: 15, color: "#1D4F6D", fontWeight: "700" }}>Super Admin Support</Text>
           </View>
 
           <View

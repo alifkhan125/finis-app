@@ -62,6 +62,8 @@ export default function WorkScheduleScreen() {
   const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
   const [requestType, setRequestType] = useState<"check_in" | "check_out">("check_in");
   const [adjustedTime, setAdjustedTime] = useState(new Date());
+  const [proposedStart, setProposedStart] = useState("08:00");
+  const [proposedEnd, setProposedEnd] = useState("17:00");
   const [showPicker, setShowPicker] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -72,6 +74,8 @@ export default function WorkScheduleScreen() {
 
   const openAdjustmentModal = (assignment: any) => {
     setSelectedSchedule(assignment);
+    setProposedStart(assignment.schedule?.startTime || '08:00');
+    setProposedEnd(assignment.schedule?.endTime || '17:00');
     setRequestType("check_in");
     setAdjustedTime(new Date());
     setAdjustmentScope('single_day');
@@ -92,54 +96,16 @@ export default function WorkScheduleScreen() {
 
   const handleSubmit = () => {
     if (!selectedSchedule) return;
-
-    const originalTimeStr = requestType === "check_in" 
-      ? selectedSchedule.schedule?.startTime 
-      : selectedSchedule.schedule?.endTime;
-
-    // Convert "08:00 AM" or "08:00" to full ISO date
-    const parseTime = (timeStr: string) => {
-      if (!timeStr) return new Date().toISOString();
-      const [time, modifier] = timeStr.split(' ');
-      let [hours, minutes] = time.split(':');
-      if (hours === '12') hours = '00';
-      if (modifier?.toLowerCase() === 'pm') hours = (parseInt(hours, 10) + 12).toString();
-      const d = new Date();
-      d.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
-      return d.toISOString();
-    };
-
-    const timeFormatted = adjustedTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    const dateFormatted = selectedDate.toISOString().split('T')[0];
-
-    const taggedReason = adjustmentScope === 'single_day'
-      ? `[Scope: single_day] [Date: ${dateFormatted}] [Time: ${timeFormatted}] ${reason.trim() || 'Single day adjustment'}`
-      : `[Scope: regular] [Time: ${timeFormatted}] ${reason.trim() || 'Regular shift schedule change'}`;
-
-    submitMutation.mutate(
-      {
-        date: adjustmentScope === 'single_day' ? selectedDate.toISOString() : new Date().toISOString(),
-        requestType,
-        originalTime: parseTime(originalTimeStr),
-        adjustedTime: adjustedTime.toISOString(),
-        reason: taggedReason,
-      },
-      {
-        onSuccess: () => {
-          Alert.alert(
-            "Success",
-            adjustmentScope === 'single_day'
-              ? `Time adjustment request for ${selectedDate.toLocaleDateString()} submitted.`
-              : "Regular schedule change request submitted."
-          );
-          setModalVisible(false);
-          refetch();
-        },
-        onError: (err: any) => {
-          Alert.alert("Error", err.message || "Failed to submit request.");
-        }
-      }
-    );
+    const date = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+    submitMutation.mutate({
+      date, kind: 'shift_change', scope: adjustmentScope,
+      scheduleId: selectedSchedule.schedule?.id || selectedSchedule.scheduleId,
+      requestType: 'check_in', startTime: proposedStart.trim(), endTime: proposedEnd.trim(),
+      reason: reason.trim(),
+    }, {
+      onSuccess: () => { Alert.alert('Submitted', 'Your admin will review the proposed shift. Your actual attendance times stay unchanged.'); setModalVisible(false); refetch(); },
+      onError: (err: any) => Alert.alert('Error', err?.response?.data?.message || err.message || 'Unable to submit request'),
+    });
   };
 
   return (
@@ -269,7 +235,7 @@ export default function WorkScheduleScreen() {
               const isPending = req.status === 'pending';
               const isApproved = req.status === 'approved';
               const isDenied = req.status === 'denied';
-              const isSingleDay = req.reason?.includes('Scope: single_day');
+              const isSingleDay = req.scope === 'single_day' || req.reason?.includes('Scope: single_day');
               const dateMatch = req.reason?.match(/\[Date:\s*([^\]]+)\]/);
               const targetDateStr = dateMatch ? dateMatch[1] : new Date(req.date).toLocaleDateString();
 
@@ -298,7 +264,7 @@ export default function WorkScheduleScreen() {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text style={{ fontSize: 15, fontWeight: '700', color: THEME.colors.textMain }}>
-                        {req.requestType === 'check_in' ? 'Check-In Correction' : 'Check-Out Correction'}
+                        {req.kind === 'shift_change' ? 'Shift Change' : req.requestType === 'check_in' ? 'Check-In Correction' : 'Check-Out Correction'}
                       </Text>
                       <View style={{ backgroundColor: isSingleDay ? '#F3E8FF' : '#EFF6FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
                         <Text style={{ fontSize: 10, fontWeight: '700', color: isSingleDay ? '#7E22CE' : '#1D4ED8' }}>
@@ -331,7 +297,7 @@ export default function WorkScheduleScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
                     <Feather name="clock" size={15} color={THEME.colors.textSecondary} />
                     <Text style={{ marginLeft: 6, fontSize: 14, color: THEME.colors.textSecondary }}>
-                      Requested Time: <Text style={{ fontWeight: '700', color: THEME.colors.textMain }}>{displayTime}</Text>
+                      Requested Time: <Text style={{ fontWeight: '700', color: THEME.colors.textMain }}>{req.kind === 'shift_change' && req.startTime && req.endTime ? `${req.startTime} – ${req.endTime}` : displayTime}</Text>
                     </Text>
                   </View>
 
@@ -390,7 +356,7 @@ export default function WorkScheduleScreen() {
             </View>
 
             {/* Date Picker if Single Day */}
-            {adjustmentScope === "single_day" && (
+            {(
               <View style={{ marginBottom: 14 }}>
                 <Text style={{ fontSize: 13, fontWeight: "700", color: THEME.colors.textMain, marginBottom: 6, textTransform: 'uppercase' }}>Select Date</Text>
                 <TouchableOpacity 
@@ -414,54 +380,11 @@ export default function WorkScheduleScreen() {
               </View>
             )}
 
-            {/* Request Type Check-In vs Check-Out */}
-            <Text style={{ fontSize: 13, fontWeight: "700", color: THEME.colors.textMain, marginBottom: 6, textTransform: 'uppercase' }}>Which Time to Adjust</Text>
-            <View style={{ flexDirection: "row", marginBottom: 16, gap: 10 }}>
-              <TouchableOpacity 
-                style={{ flex: 1, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: requestType === "check_in" ? THEME.colors.bluePrimary : THEME.colors.border, backgroundColor: requestType === "check_in" ? "#EEF2FF" : THEME.colors.white, alignItems: "center" }}
-                onPress={() => setRequestType("check_in")}
-              >
-                <Text style={{ fontWeight: "600", color: requestType === "check_in" ? THEME.colors.bluePrimary : THEME.colors.textSecondary }}>Check In</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={{ flex: 1, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: requestType === "check_out" ? THEME.colors.bluePrimary : THEME.colors.border, backgroundColor: requestType === "check_out" ? "#EEF2FF" : THEME.colors.white, alignItems: "center" }}
-                onPress={() => setRequestType("check_out")}
-              >
-                <Text style={{ fontWeight: "600", color: requestType === "check_out" ? THEME.colors.bluePrimary : THEME.colors.textSecondary }}>Check Out</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={{ fontSize: 13, fontWeight: "700", color: THEME.colors.textMain, marginBottom: 6, textTransform: 'uppercase' }}>New Adjusted Time</Text>
-            {Platform.OS === 'ios' ? (
-              <DateTimePicker
-                value={adjustedTime}
-                mode="time"
-                is24Hour={false}
-                display="default"
-                onChange={handleTimeChange}
-                style={{ marginBottom: 16 }}
-              />
-            ) : (
-              <>
-                <TouchableOpacity 
-                  style={{ padding: 12, borderWidth: 1, borderColor: THEME.colors.border, borderRadius: 8, marginBottom: 16, alignItems: "center", backgroundColor: '#F8FAFC' }}
-                  onPress={() => setShowPicker(true)}
-                >
-                  <Text style={{ color: THEME.colors.textMain, fontWeight: '700', fontSize: 16 }}>
-                    {adjustedTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                  </Text>
-                </TouchableOpacity>
-                {showPicker && (
-                  <DateTimePicker
-                    value={adjustedTime}
-                    mode="time"
-                    is24Hour={false}
-                    display="default"
-                    onChange={handleTimeChange}
-                  />
-                )}
-              </>
-            )}
+            <Text style={{ fontWeight: '700', marginBottom: 8 }}>Proposed shift start</Text>
+            <TextInput value={proposedStart} onChangeText={setProposedStart} placeholder="08:00 or 08:00 AM" style={{ borderWidth: 1, borderColor: THEME.colors.border, borderRadius: 8, padding: 12, marginBottom: 16 }} />
+            <Text style={{ fontWeight: '700', marginBottom: 8 }}>Proposed shift end</Text>
+            <TextInput value={proposedEnd} onChangeText={setProposedEnd} placeholder="17:00 or 05:00 PM" style={{ borderWidth: 1, borderColor: THEME.colors.border, borderRadius: 8, padding: 12, marginBottom: 16 }} />
+            <Text style={{ color: '#667085', marginBottom: 16 }}>An end time earlier than the start time means the shift ends the next day.</Text>
 
             <Text style={{ fontSize: 13, fontWeight: "700", color: THEME.colors.textMain, marginBottom: 6, textTransform: 'uppercase' }}>Reason</Text>
             <TextInput

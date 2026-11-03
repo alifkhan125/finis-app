@@ -18,6 +18,7 @@ import { toast } from "sonner-native";
 export default function AddInventoryScreen() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
+  const [location, setLocation] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("Units");
   const [minStockQty, setMinStockQty] = useState("5");
@@ -37,6 +38,7 @@ export default function AddInventoryScreen() {
       {
         name: name.trim(),
         category: category.trim() || undefined,
+        location: location.trim() || undefined,
         unit: unit.trim(),
         currentQty: Number(quantity) || 0,
         minStockQty: Number(minStockQty) || 0,
@@ -74,6 +76,12 @@ export default function AddInventoryScreen() {
                 value={category}
                 onChangeText={setCategory}
                 placeholder="e.g. Structural, Finishing"
+              />
+              <InventoryFormField
+                label="Location"
+                value={location}
+                onChangeText={setLocation}
+                placeholder="e.g. Warehouse A, Site Shed"
               />
               <InventoryFormField
                 label="Initial Quantity"

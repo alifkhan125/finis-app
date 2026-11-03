@@ -99,7 +99,7 @@ export default function OnboardingLegalScreen({ slug, fallbackTitle, nextRoute }
               }}
             >
               {subtitle ? <Text className="mb-4 text-[15px] font-medium leading-6 text-[#3E454C]">{subtitle}</Text> : null}
-              {body ? <View className="mb-5"><RichDocument html={body} /></View> : null}
+              {body ? <View className="mb-5"><RichDocument html={body} flattenQuoteBlocks /></View> : null}
               <Pressable
                 className="mt-2 flex-row items-start rounded-2xl border border-[#D9E2E8] bg-[#F8FAFB] p-4"
                 onPress={() => setAccepted((value) => !value)}

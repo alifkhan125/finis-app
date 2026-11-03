@@ -16,6 +16,20 @@ export type WorkerTodayAttendance = {
   sessions: WorkerAttendanceSession[];
   totalHours: number;
   currentSessionStart: string | null;
+  calculation?: {
+    status: string;
+    lateStatus: string;
+    currentState: 'checked_in' | 'checked_out' | 'temporarily_checked_out';
+    totalInsideHours: number;
+    totalOutsideHours: number;
+    totalCountedHours: number;
+    totalElapsedHours: number;
+    totalSessions: number;
+    totalCheckOuts: number;
+    firstCheckIn: string | null;
+    lastCheckOut: string | null;
+    approvedShift: { startTime: string; endTime: string; graceMinutes: number } | null;
+  };
 };
 
 export type WorkerProjectOption = {

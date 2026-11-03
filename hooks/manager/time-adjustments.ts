@@ -27,7 +27,7 @@ export function useUpdateTimeAdjustmentStatusMutation() {
 export function useSubmitTimeAdjustmentMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { date: string; requestType: "check_in" | "check_out"; originalTime: string; adjustedTime: string; reason?: string }) => {
+    mutationFn: async (payload: { date: string; requestType?: "check_in" | "check_out"; originalTime?: string; adjustedTime?: string; reason?: string; kind?: 'correction' | 'shift_change'; scope?: 'single_day' | 'regular'; scheduleId?: string; sessionId?: string; startTime?: string; endTime?: string }) => {
       const { data } = await api.post("/time-adjustments/request", payload);
       return data;
     },

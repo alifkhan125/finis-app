@@ -28,6 +28,7 @@ export default function InventoryFormField({
           placeholder={placeholder}
           placeholderTextColor="#8B949C"
           keyboardType={keyboardType}
+          numberOfLines={1}
           className="text-[18px] text-[#545C64]"
         />
       </View>

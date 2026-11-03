@@ -23,7 +23,7 @@ export default function AdjustTimeScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const queryClient = useQueryClient();
-  const { date, checkIn, checkOut } = params;
+  const { date, checkIn, checkOut, sessionId } = params;
 
   const [requestType, setRequestType] = useState<"check_in" | "check_out">("check_in");
   const [adjustedTime, setAdjustedTime] = useState<Date>(
@@ -43,7 +43,7 @@ export default function AdjustTimeScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["worker", "attendance", "history"] });
-      Alert.alert("Success", "Time adjustment request submitted to your manager.", [
+      Alert.alert("Success", "Time adjustment request submitted to your admin.", [
         { text: "OK", onPress: () => router.back() }
       ]);
     },
@@ -59,6 +59,9 @@ export default function AdjustTimeScreen() {
     }
     submitMutation.mutate({
       date: date as string,
+      kind: 'correction',
+      scope: 'single_day',
+      sessionId: sessionId || undefined,
       requestType,
       originalTime: originalTimeStr,
       adjustedTime: adjustedTime.toISOString(),

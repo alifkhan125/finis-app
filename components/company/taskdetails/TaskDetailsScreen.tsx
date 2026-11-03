@@ -70,20 +70,39 @@ function formatDate(value?: string | null, fallback = "—") {
 
 function formatSubTaskStatus(status: string, approvalDecision?: string | null) {
   if (approvalDecision === "rejected") return "REVISION";
-  const normalized = status.toLowerCase();
-  if (normalized === "in_progress") return "IN PROGRESS";
-  if (normalized === "completed") return "COMPLETED";
-  return "PENDING";
+  const normalized = status.toLowerCase().trim();
+  const labels: Record<string, string> = {
+    pending: "PENDING",
+    in_active: "PENDING",
+    in_progress: "IN PROGRESS",
+    review: "REVIEW",
+    completed: "COMPLETED",
+    revision: "REVISION",
+    cancelled: "CANCELLED",
+    denied: "DENIED",
+    rejected: "REVISION",
+    approved: "APPROVED",
+  };
+  return labels[normalized] ?? (normalized ? normalized.replace(/_/g, " ").toUpperCase() : "PENDING");
 }
 
 function getSubTaskStatusStyle(status: string, approvalDecision?: string | null) {
   if (approvalDecision === "rejected") return { bg: "#FEE2E2", text: "#991B1B" };
-  const normalized = status.toLowerCase();
+  const normalized = status.toLowerCase().trim();
   if (normalized === "completed") {
     return { bg: "#DDF2E8", text: "#0C8F41" };
   }
   if (normalized === "in_progress") {
     return { bg: "#DDE8FF", text: "#2051F8" };
+  }
+  if (normalized === "review") {
+    return { bg: "#EEE5FF", text: "#7042C5" };
+  }
+  if (normalized === "revision" || normalized === "rejected" || normalized === "denied") {
+    return { bg: "#FEE2E2", text: "#991B1B" };
+  }
+  if (normalized === "cancelled") {
+    return { bg: "#EEF1F4", text: "#667085" };
   }
   return { bg: "#FFF4E8", text: "#E58B18" };
 }
@@ -308,7 +327,7 @@ export default function TaskDetailsScreen({
 
           <View className="mt-4 gap-3">
             {subTasks.map((subTask) => {
-              const badgeStyle = getSubTaskStatusStyle(subTask.status);
+              const badgeStyle = getSubTaskStatusStyle(subTask.status, subTask.approvalDecision);
               return (
                 <View
                   key={subTask.id}
@@ -337,7 +356,7 @@ export default function TaskDetailsScreen({
                         className="text-[10px] font-semibold"
                         style={{ color: badgeStyle.text }}
                       >
-                        {formatSubTaskStatus(subTask.status)}
+                        {formatSubTaskStatus(subTask.status, subTask.approvalDecision)}
                       </Text>
                     </View>
                   </View>

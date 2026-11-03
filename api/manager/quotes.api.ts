@@ -192,9 +192,9 @@ export async function getQuoteWorkCategories(params?: { search?: string; include
   const queryParams = typeof params === "string"
     ? { search: params }
     : {
-        search: params?.search || undefined,
-        includeInactive: params?.includeInactive ? "true" : undefined,
-      };
+      search: params?.search || undefined,
+      includeInactive: params?.includeInactive ? "true" : undefined,
+    };
 
   const { data } = await api.get<any>(
     "/manager/quotes/work-categories",
@@ -237,9 +237,9 @@ export async function getQuoteMeasurementTypes(params?: { search?: string; inclu
   const queryParams = typeof params === "string"
     ? { search: params }
     : {
-        search: params?.search || undefined,
-        includeInactive: params?.includeInactive ? "true" : undefined,
-      };
+      search: params?.search || undefined,
+      includeInactive: params?.includeInactive ? "true" : undefined,
+    };
 
   const { data } = await api.get<any>(
     "/manager/quotes/measurement-types",
@@ -289,13 +289,13 @@ export async function getQuoteWorkItems(params?: {
 }) {
   const queryParams = params
     ? {
-        ...params,
-        projectType: params.projectType?.toLowerCase(),
-        propertyType: params.propertyType?.toLowerCase(),
-        unitType: params.unitType?.toLowerCase(),
-        includeInactive: params.includeInactive ? "true" : undefined,
-        flat: params.flat ? "true" : undefined,
-      }
+      ...params,
+      projectType: params.projectType?.toLowerCase(),
+      propertyType: params.propertyType?.toLowerCase(),
+      unitType: params.unitType?.toLowerCase(),
+      includeInactive: params.includeInactive ? "true" : undefined,
+      flat: params.flat ? "true" : undefined,
+    }
     : undefined;
 
   const { data } = await api.get<any>(
@@ -625,12 +625,17 @@ export async function getQuoteEstimates(params?: {
   status?: string;
   search?: string;
 }) {
-  const { data } = await api.get<any>("/admin/quote-estimates", { params });
+  const cleanParams = params ? { ...params } : undefined;
+  if (cleanParams?.status && cleanParams.status.toLowerCase() === "all") {
+    delete cleanParams.status;
+  }
+  const { data } = await api.get<any>("/admin/quote-estimates", { params: cleanParams });
 
   const raw = data?.data ?? data;
   if (Array.isArray(raw)) return raw as QuoteEstimateResponse[];
   if (raw && Array.isArray(raw.data)) return raw.data as QuoteEstimateResponse[];
   if (raw && Array.isArray(raw.quotes)) return raw.quotes as QuoteEstimateResponse[];
+  if (raw && Array.isArray(raw.items)) return raw.items as QuoteEstimateResponse[];
   return [] as QuoteEstimateResponse[];
 }
 
@@ -650,6 +655,3 @@ export async function deleteQuoteEstimate(id: string) {
   const { data } = await api.delete<{ success: boolean; message: string }>(`/admin/quote-estimates/${id}`);
   return data;
 }
-
-
-
